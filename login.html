@@ -1,0 +1,35 @@
+<!--
+  文件说明: 静态登录页 HTML 入口，由 Vite 构建样式和登录页交互脚本。
+-->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>登录 · Sub2API Lab</title>
+  </head>
+  <body class="login-page">
+    <main class="login-shell">
+      <section class="login-panel">
+        <div>
+          <h1>登录 Sub2API Lab</h1>
+          <p>输入内部管理账号后继续查看用量、成本分摊和余额恢复工具。</p>
+        </div>
+        <p class="login-error" data-login-error hidden>用户名或密码不正确</p>
+        <form method="post" class="login-form" data-login-form>
+          <input type="hidden" name="next" data-login-next />
+          <label>
+            <span>用户名</span>
+            <input name="username" autocomplete="username" required />
+          </label>
+          <label>
+            <span>密码</span>
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit">登录</button>
+        </form>
+      </section>
+    </main>
+    <script type="module" src="/src/client/login.ts"></script>
+  </body>
+</html>

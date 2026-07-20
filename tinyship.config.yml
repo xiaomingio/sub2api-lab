@@ -1,0 +1,21 @@
+# 文件说明: TinyShip 发布配置模板，维护远程主机、同步文件清单和 PM2 服务动作。
+
+hosts:
+  production-host:
+    ssh:
+      target: sub2api-lab-production
+    appDir: /opt/sub2api-lab
+    rsync:
+      - dist/
+      - package.json
+      - package-lock.json
+      - ecosystem.config.cjs
+      - tinyship.config.yml
+      - .env.production
+
+services:
+  sub2api-lab:
+    host: production-host
+    npmInstall: true
+    pm2Restart: true
+    postCommand: []

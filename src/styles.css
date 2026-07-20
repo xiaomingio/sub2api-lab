@@ -1,0 +1,576 @@
+/*
+ * 文件说明: Sub2API Lab 管理台样式真源，用语义 class 组合 Tailwind utility。
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: #f6f8fb;
+    --panel: #ffffff;
+    --panel-border: #dce3eb;
+    --text: #172033;
+    --muted: #697386;
+    --line: #e6ebf1;
+    --accent: #0f9d8f;
+    --accent-soft: #c8f7ed;
+    --accent-strong: #08766e;
+    --danger: #b42318;
+    --warning: #946200;
+    --success: #087443;
+    --shadow: 0 18px 48px rgba(21, 35, 56, 0.08);
+  }
+
+  body {
+    @apply m-0 min-w-80 bg-[color:var(--bg)] text-[color:var(--text)] antialiased;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: 0;
+    overflow-x: hidden;
+  }
+
+  html,
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  button:disabled,
+  input:disabled {
+    @apply cursor-not-allowed opacity-55;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  summary:focus-visible,
+  a:focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-[color:var(--accent)];
+  }
+
+  h1,
+  h2,
+  h3,
+  p {
+    @apply m-0;
+  }
+
+  h1 {
+    @apply text-[22px] leading-[1.15];
+  }
+
+  table {
+    @apply w-full min-w-[900px] border-collapse;
+  }
+
+  th,
+  td {
+    @apply whitespace-nowrap border-b border-[color:var(--line)] px-4 py-3.5 text-left;
+  }
+
+  th {
+    @apply bg-[#f9fbfd] text-xs font-extrabold text-[#526070];
+  }
+
+  td {
+    @apply text-sm;
+  }
+
+  tbody tr:hover {
+    @apply bg-[#fbfdfd];
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto grid w-[min(1440px,calc(100vw-48px))] min-w-0 gap-[18px] py-9 pt-[22px];
+  }
+
+  .topbar {
+    @apply flex items-end justify-between gap-6;
+  }
+
+  .top-actions {
+    @apply flex items-end gap-3;
+  }
+
+  .tab-nav {
+    @apply flex flex-wrap gap-2 border-b border-[color:var(--line)];
+  }
+
+  .tab-link {
+    @apply -mb-px inline-flex h-11 items-center rounded-t-lg border border-transparent px-4 text-sm font-extrabold text-[#5a6678] no-underline;
+  }
+
+  .tab-link:hover {
+    @apply bg-[#eef7f6] text-[color:var(--accent-strong)];
+  }
+
+  .tab-link.is-active {
+    @apply border-[color:var(--panel-border)] border-b-[color:var(--panel)] bg-[color:var(--panel)] text-[color:var(--text)];
+  }
+
+  .tab-panel {
+    @apply hidden;
+  }
+
+  .tab-panel.is-active {
+    @apply grid min-w-0 gap-[18px];
+  }
+
+  .section-intro {
+    @apply min-w-0 rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-4 py-3;
+  }
+
+  .section-intro p {
+    @apply max-w-[1120px] text-sm leading-6 text-[color:var(--muted)];
+    overflow-wrap: anywhere;
+  }
+
+  .tool-panel,
+  .table-section {
+    @apply rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)];
+  }
+
+  .tool-panel {
+    @apply grid min-w-0 gap-4 p-5;
+  }
+
+  .form-grid {
+    @apply grid grid-cols-[minmax(180px,260px)_minmax(180px,260px)_auto] items-end gap-3.5;
+  }
+
+  .form-grid label,
+  .form-field,
+  .custom-range label,
+  .login-form label {
+    @apply grid gap-[7px] text-[13px] font-extrabold text-[#38455c];
+  }
+
+  .form-grid input,
+  .custom-range input,
+  .login-form input {
+    @apply h-[42px] w-full min-w-0 rounded-lg border border-[color:var(--panel-border)] px-3 text-[color:var(--text)];
+  }
+
+  .amount-input {
+    @apply flex h-[42px] min-w-0 items-center rounded-lg border border-[color:var(--panel-border)] bg-white pr-1.5;
+  }
+
+  .amount-input input {
+    @apply h-full flex-1 border-0 bg-transparent pr-2;
+  }
+
+  .amount-input input:focus-visible {
+    @apply outline-0;
+  }
+
+  .amount-input:focus-within {
+    @apply outline outline-2 outline-offset-2 outline-[color:var(--accent)];
+  }
+
+  .currency-tabs {
+    @apply inline-flex flex-none overflow-hidden rounded-md border border-[color:var(--panel-border)] bg-[#f9fbfd] p-0.5;
+  }
+
+  .currency-tabs button {
+    @apply h-7 cursor-pointer rounded border-0 bg-transparent px-2 text-xs font-extrabold text-[color:var(--muted)] transition-colors;
+  }
+
+  .currency-tabs button:hover {
+    @apply text-[color:var(--accent-strong)];
+  }
+
+  .currency-tabs button.is-active {
+    @apply bg-[color:var(--accent)] text-white;
+  }
+
+  .primary-button,
+  .ghost-button,
+  .apply-button,
+  .logout-button,
+  .login-form button {
+    @apply cursor-pointer rounded-lg font-extrabold transition-colors;
+  }
+
+  .primary-button,
+  .apply-button,
+  .login-form button {
+    @apply h-[42px] border-0 bg-[color:var(--accent)] px-4 text-sm text-white;
+  }
+
+  .primary-button:hover,
+  .apply-button:hover,
+  .login-form button:hover {
+    @apply bg-[color:var(--accent-strong)];
+  }
+
+  .ghost-button {
+    @apply h-9 border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-3 text-sm text-[#4b566a];
+  }
+
+  .ghost-button:hover {
+    @apply border-[#b8c3d1] text-[color:var(--text)];
+  }
+
+  .inline-note {
+    @apply flex min-h-[42px] items-center rounded-lg border border-dashed border-[color:var(--panel-border)] px-3 text-sm font-bold text-[color:var(--muted)];
+  }
+
+  .logout-button {
+    @apply h-10 min-w-[70px] border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-3 text-sm text-[#4b566a];
+  }
+
+  .logout-button:hover {
+    @apply border-[#b8c3d1] text-[color:var(--text)];
+  }
+
+  .selection-head {
+    @apply flex items-end justify-between gap-4 border-t border-[color:var(--line)] pt-4;
+  }
+
+  .selection-head h3 {
+    @apply text-base;
+  }
+
+  .selection-meta {
+    @apply mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[color:var(--muted)];
+  }
+
+  .selection-actions {
+    @apply flex flex-wrap justify-end gap-2;
+  }
+
+  .account-grid {
+    @apply grid min-w-0 grid-cols-3 gap-2.5;
+  }
+
+  .account-option {
+    @apply flex w-full min-w-0 max-w-full cursor-pointer items-start gap-3 overflow-hidden rounded-lg border border-[color:var(--line)] bg-[#fbfcfe] px-3 py-3;
+  }
+
+  .account-option:hover {
+    @apply border-[#b8c3d1] bg-white;
+  }
+
+  .account-option input {
+    @apply mt-1 h-4 w-4 flex-none accent-[color:var(--accent)];
+  }
+
+  .account-option span {
+    @apply grid min-w-0 max-w-full gap-1 overflow-hidden;
+  }
+
+  .account-option strong,
+  .user-cell span {
+    @apply block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm;
+  }
+
+  .account-option small,
+  .user-cell small {
+    @apply block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-[color:var(--muted)];
+  }
+
+  .metric-grid {
+    @apply grid grid-cols-4 gap-3.5;
+  }
+
+  .metric-grid article {
+    @apply rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-4 py-3.5;
+  }
+
+  .metric-grid span {
+    @apply block text-[13px] font-bold text-[color:var(--muted)];
+  }
+
+  .metric-grid strong {
+    @apply mt-2 block text-[21px] leading-[1.1];
+  }
+
+  .table-section {
+    @apply overflow-hidden;
+  }
+
+  .table-header {
+    @apply flex items-center justify-between gap-4 border-b border-[color:var(--line)] px-5 py-[18px];
+  }
+
+  .table-header h2 {
+    @apply text-lg;
+  }
+
+  .table-header span {
+    @apply text-[13px] text-[color:var(--muted)];
+  }
+
+  .table-wrap {
+    @apply overflow-auto;
+  }
+
+  th.sortable {
+    @apply p-0;
+  }
+
+  th.sortable form {
+    @apply m-0;
+  }
+
+  th.sortable button {
+    @apply min-h-[46px] w-full cursor-pointer border-0 bg-transparent px-4 py-3.5 text-left text-xs font-extrabold text-inherit;
+  }
+
+  th.sortable.num button {
+    @apply text-right;
+  }
+
+  th.sortable button:hover {
+    @apply bg-[#eef7f6] text-[color:var(--accent-strong)];
+  }
+
+  .range-section {
+    @apply relative rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-5 py-4;
+  }
+
+  .section-label {
+    @apply mb-2 block text-sm font-bold text-[#38455c];
+  }
+
+  .range-picker {
+    @apply relative inline-block;
+  }
+
+  .range-picker summary {
+    @apply inline-flex h-10 w-[430px] max-w-full cursor-pointer list-none items-center gap-2.5 rounded-lg border border-[#18c6b8] bg-[#f8fffd] px-[13px] text-[15px] font-bold text-[#344158] shadow-[0_0_0_3px_rgba(24,198,184,0.09)];
+  }
+
+  .range-picker summary span:not(.calendar-icon, .chevron) {
+    @apply min-w-0 flex-none whitespace-nowrap;
+  }
+
+  .range-picker summary::-webkit-details-marker {
+    @apply hidden;
+  }
+
+  .calendar-icon {
+    @apply relative h-[17px] w-[17px] flex-none rounded-[3px] border-[1.5px] border-[#9aa6b8];
+  }
+
+  .calendar-icon::before {
+    @apply absolute left-[-2px] right-[-2px] top-1 content-[''];
+    border-top: 1.5px solid #9aa6b8;
+  }
+
+  .calendar-icon::after {
+    @apply absolute left-[5px] right-[5px] top-[-4px] h-1.5 content-[''];
+    border-left: 1.5px solid #9aa6b8;
+    border-right: 1.5px solid #9aa6b8;
+  }
+
+  .chevron {
+    @apply ml-auto h-[9px] w-[9px] rotate-45 border-b-2 border-r-2 border-[#9aa6b8];
+    transform: rotate(45deg) translateY(-3px);
+  }
+
+  .range-picker[open] .chevron {
+    transform: rotate(225deg) translateY(-2px);
+  }
+
+  .range-panel {
+    @apply absolute left-0 z-10 mt-2.5 w-[min(720px,calc(100vw-48px))] overflow-hidden rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--panel)];
+    box-shadow: var(--shadow);
+  }
+
+  .preset-grid {
+    @apply grid grid-cols-2 gap-x-3.5 gap-y-2 p-4;
+  }
+
+  .range-option {
+    @apply h-[38px] cursor-pointer whitespace-nowrap rounded-[10px] border-0 bg-transparent px-3 text-left text-[15px] font-bold text-[#4b566a];
+  }
+
+  .range-option:hover,
+  .range-option.is-active {
+    @apply bg-[color:var(--accent-soft)] text-[color:var(--accent-strong)];
+  }
+
+  .custom-range {
+    @apply grid grid-cols-[1fr_auto_1fr_auto] items-end gap-3 border-t border-[color:var(--line)] p-4;
+  }
+
+  .range-arrow {
+    @apply pb-[9px] text-lg text-[#97a3b6];
+  }
+
+  .num {
+    @apply text-right tabular-nums;
+  }
+
+  .strong {
+    @apply font-extrabold;
+  }
+
+  .cost {
+    @apply font-extrabold text-[color:var(--accent-strong)];
+  }
+
+  .user-cell {
+    @apply grid gap-0.5;
+  }
+
+  .empty-cell {
+    @apply h-[160px] text-center text-[color:var(--muted)];
+  }
+
+  .status-message {
+    @apply rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-4 py-3 text-sm font-bold text-[#4b566a];
+  }
+
+  .status-message.is-success {
+    @apply border-[#a7e4c1] bg-[#f0fff7] text-[color:var(--success)];
+  }
+
+  .status-message.is-warning {
+    @apply border-[#f3d695] bg-[#fff9e8] text-[color:var(--warning)];
+  }
+
+  .status-message.is-error {
+    @apply border-[#f1b8b8] bg-[#fff4f4] text-[color:var(--danger)];
+  }
+
+  .confirm-dialog {
+    @apply w-[min(520px,calc(100vw-32px))] rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] p-0 text-[color:var(--text)];
+    box-shadow: var(--shadow);
+  }
+
+  .confirm-dialog::backdrop {
+    @apply bg-[rgba(23,32,51,0.32)];
+  }
+
+  .confirm-dialog form {
+    @apply grid gap-4 p-5;
+  }
+
+  .confirm-dialog h2 {
+    @apply text-lg;
+  }
+
+  .confirm-dialog p {
+    @apply text-sm leading-6 text-[color:var(--muted)];
+  }
+
+  .dialog-actions {
+    @apply flex justify-end gap-2;
+  }
+
+  .login-page {
+    @apply grid min-h-screen place-items-center p-6;
+  }
+
+  .login-shell {
+    @apply w-[min(100%,380px)];
+  }
+
+  .login-panel {
+    @apply grid gap-[18px] rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] p-7;
+    box-shadow: var(--shadow);
+  }
+
+  .login-panel h1 {
+    @apply text-2xl;
+  }
+
+  .login-panel p {
+    @apply mt-2 text-sm text-[color:var(--muted)];
+  }
+
+  .login-error {
+    @apply m-0 rounded-lg border border-[#f1b8b8] bg-[#fff4f4] px-3 py-2.5 font-bold text-[#9d2626];
+  }
+
+  .login-form {
+    @apply grid gap-3.5;
+  }
+}
+
+@media (max-width: 1020px) {
+  .account-grid {
+    @apply grid-cols-2;
+  }
+
+  .form-grid {
+    @apply grid-cols-2;
+  }
+
+  .form-grid .primary-button {
+    @apply col-span-2 w-full;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-shell {
+    @apply w-[min(calc(100vw-28px),720px)] pt-[18px];
+  }
+
+  .topbar,
+  .top-actions,
+  .selection-head,
+  .form-grid,
+  .custom-range {
+    @apply grid items-start;
+  }
+
+  .top-actions,
+  .selection-actions {
+    @apply w-full grid-cols-2;
+  }
+
+  .logout-button,
+  .ghost-button {
+    @apply w-full;
+  }
+
+  .account-grid,
+  .metric-grid,
+  .form-grid,
+  .custom-range {
+    @apply grid-cols-1;
+  }
+
+  .form-grid .primary-button {
+    @apply col-span-1;
+  }
+
+  .range-panel {
+    @apply w-[min(calc(100vw-28px),720px)];
+  }
+
+  .range-picker summary {
+    @apply w-full;
+  }
+
+  .preset-grid {
+    @apply grid-cols-1;
+  }
+
+  .range-arrow {
+    @apply hidden;
+  }
+
+  .apply-button {
+    @apply w-full;
+  }
+
+  .metric-grid {
+    @apply grid-cols-2;
+  }
+
+  .dialog-actions {
+    @apply grid grid-cols-2;
+  }
+}
