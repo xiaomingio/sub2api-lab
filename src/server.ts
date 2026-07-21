@@ -19,7 +19,10 @@ import { createSub2APIAdminClient, restoreSelectedUserBalances } from "./sub2api
 import { getUserUsageSummary } from "./usage.js";
 
 const config = loadConfig();
-const db = await createDb(config);
+const db = await createDb(config).catch((error: unknown) => {
+  console.error("Failed to initialize database connection", error);
+  process.exit(1);
+});
 const app = Fastify({ logger: true });
 const projectDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(projectDir, "dist/client");
@@ -229,4 +232,7 @@ process.on("SIGTERM", () => {
   close().finally(() => process.exit(0));
 });
 
-await app.listen({ host: config.host, port: config.port });
+await app.listen({ host: config.host, port: config.port }).catch((error: unknown) => {
+  app.log.error(error, "Failed to start HTTP server");
+  process.exit(1);
+});

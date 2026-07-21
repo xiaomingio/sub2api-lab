@@ -3,7 +3,7 @@
 hosts:
   production-host:
     ssh:
-      target: sub2api-lab-production
+      target: bandwagon
     appDir: /opt/sub2api-lab
     rsync:
       - dist/
