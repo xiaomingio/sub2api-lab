@@ -141,12 +141,7 @@ export async function getUsageCostBasisReport(params: {
   const accountIds = parseAccountIds(params.accountIds.map(String));
   if (params.basis === "balance") {
     return {
-      rows: await getUserUsageCostBasis({
-        db: params.db,
-        range: params.range,
-        metric: "actual_cost",
-        accountIds
-      }),
+      rows: [],
       metric: null,
       accountIds
     };

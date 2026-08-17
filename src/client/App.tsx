@@ -521,8 +521,6 @@ function AllocationTab(props: {
           )
         },
         systemBalanceColumn,
-        totalCostColumn,
-        actualCostColumn,
         basisColumn,
         ...trailingColumns
       ];
@@ -563,6 +561,7 @@ function AllocationTab(props: {
   }
 
   function changeAllocationBasis(nextBasis: AllocationBasis) {
+    setAllocationSort({ key: "basis", order: "desc" });
     if (nextBasis === "balance") {
       props.onSelectedUserIdsChange(idsFromAccounts(props.data.balanceAccounts.filter(isNonZeroBalance)));
     }
