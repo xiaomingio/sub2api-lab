@@ -14,9 +14,10 @@ import { defaultActualCost, defaultInitialBalance, listBalanceAccounts, normaliz
 import type { BalanceAccount } from "./balances.js";
 import { loadConfig } from "./config.js";
 import { createDb } from "./db.js";
-import { resolveDateRange } from "./ranges.js";
+import { resolveDateRange, resolveDateTimeRange } from "./ranges.js";
 import { createSub2APIAdminClient, restoreSelectedUserBalances } from "./sub2api.js";
 import { getUserUsageSummary } from "./usage.js";
+import { getUsageCostBasisReport, listUpstreamAccounts, normalizeAllocationBasis, parseAccountIds } from "./usage_costs.js";
 
 const config = loadConfig();
 const db = await createDb(config).catch((error: unknown) => {
@@ -56,6 +57,10 @@ type UsageQuery = {
   end_date?: string;
   sort?: string;
   order?: string;
+  allocation_basis?: string;
+  allocation_account_ids?: string | string[];
+  allocation_start_at?: string;
+  allocation_end_at?: string;
 };
 
 type RestoreRequestBody = {
@@ -103,7 +108,16 @@ async function dashboardApi(request: FastifyRequest) {
     timezone: config.timezone,
     defaultPreset: config.defaultRange
   });
-  const [usage, balanceAccounts] = await Promise.all([
+  const allocationBasis = normalizeAllocationBasis(query.allocation_basis);
+  const allocationRange = resolveDateTimeRange({
+    startAt: query.allocation_start_at,
+    endAt: query.allocation_end_at,
+    timezone: config.timezone,
+    fallback: range
+  });
+  const allocationAccountIds = allocationBasis === "balance" ? [] : parseAccountIds(query.allocation_account_ids);
+
+  const [usage, balanceAccounts, upstreamAccounts, allocationUsage] = await Promise.all([
     getUserUsageSummary({
       db,
       range,
@@ -112,7 +126,14 @@ async function dashboardApi(request: FastifyRequest) {
       sortKey: query.sort,
       sortOrder: query.order
     }),
-    listBalanceAccounts(db)
+    listBalanceAccounts(db),
+    listUpstreamAccounts(db),
+    getUsageCostBasisReport({
+      db,
+      range: allocationRange,
+      basis: allocationBasis,
+      accountIds: allocationAccountIds
+    })
   ]);
 
   return {
@@ -130,6 +151,9 @@ async function dashboardApi(request: FastifyRequest) {
       disabledReason: restoreClient ? "" : "未配置 Sub2API 管理员 API Key，暂时不能执行余额写入"
     },
     balanceAccounts,
+    upstreamAccounts,
+    allocationRange,
+    allocationUsage,
     usage
   };
 }
@@ -156,7 +180,7 @@ async function usageApi(request: FastifyRequest) {
 async function restoreBalanceApi(request: FastifyRequest, reply: FastifyReply) {
   if (!restoreClient) {
     return reply.code(503).send({
-      error: "未配置 Sub2API 管理员 API Key，不能执行余额恢复"
+      error: "未配置 Sub2API 管理员 API Key，不能执行余额设置"
     });
   }
 
@@ -168,7 +192,7 @@ async function restoreBalanceApi(request: FastifyRequest, reply: FastifyReply) {
 
   const userIds = parseBodyUserIds(body?.userIds);
   if (!userIds || userIds.length === 0) {
-    return reply.code(400).send({ error: "请选择需要恢复余额的账号" });
+    return reply.code(400).send({ error: "请选择需要设置系统余额的账号" });
   }
 
   const accounts = await listBalanceAccounts(db);

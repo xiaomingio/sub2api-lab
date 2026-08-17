@@ -5,6 +5,7 @@
 import type { BalanceAccount } from "../balances.js";
 import type { RangePreset } from "../ranges.js";
 import type { SortOrder, UsageRow, UsageSortKey } from "../usage.js";
+import type { AllocationBasis, UpstreamAccount, UsageCostBasisReport } from "../usage_costs.js";
 
 type SerializedDateRange = {
   preset: RangePreset;
@@ -13,6 +14,13 @@ type SerializedDateRange = {
   end: string;
   startDate: string;
   endDate: string;
+};
+
+type SerializedDateTimeRange = {
+  start: string;
+  end: string;
+  startAt: string;
+  endAt: string;
 };
 
 type SerializedUsageReport = {
@@ -46,6 +54,9 @@ type DashboardData = {
     disabledReason: string;
   };
   balanceAccounts: BalanceAccount[];
+  upstreamAccounts: UpstreamAccount[];
+  allocationRange: SerializedDateTimeRange;
+  allocationUsage: UsageCostBasisReport;
   usage: SerializedUsageReport;
 };
 
@@ -63,7 +74,7 @@ type RestoreResult = {
   failures: RestoreFailure[];
 };
 
-type DashboardTab = "allocation" | "restore" | "usage";
+type DashboardTab = "allocation" | "balance" | "usage";
 
 type UsageQuery = {
   preset?: string;
@@ -71,6 +82,10 @@ type UsageQuery = {
   endDate?: string;
   sort?: UsageSortKey;
   order?: SortOrder;
+  allocationBasis?: AllocationBasis;
+  allocationAccountIds?: number[];
+  allocationStartAt?: string;
+  allocationEndAt?: string;
 };
 
 export type { DashboardData, DashboardTab, RestoreFailure, RestoreResult, SerializedUsageReport, UsageQuery };

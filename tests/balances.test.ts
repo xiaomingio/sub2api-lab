@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compareSystemBalancesDesc, createBalanceReport } from "../src/balances.js";
+import { compareSystemBalancesDesc, createBalanceReport, createUsageCostAllocationReport } from "../src/balances.js";
 import type { BalanceAccount } from "../src/balances.js";
 
 function account(userId: number, currentBalance: string): BalanceAccount {
@@ -97,4 +97,46 @@ test("系统余额字符串按金额数值从高到低比较", () => {
   const balances = ["9.9", "10", "10.00000001", "0", "5000"];
 
   assert.deepEqual([...balances].sort(compareSystemBalancesDesc), ["5000", "10.00000001", "10", "9.9", "0"]);
+});
+
+test("按 usage_logs 成本基准把实际采购成本精确分摊到分", () => {
+  const report = createUsageCostAllocationReport({
+    actualCost: "1200",
+    accounts: [account(1, "4200"), account(2, "2200")],
+    costBasisRows: [
+      { userId: 1, costBasis: "10", actualCost: "10", totalCost: "20" },
+      { userId: 2, costBasis: "30", actualCost: "30", totalCost: "60" }
+    ]
+  });
+
+  assert.deepEqual(
+    report.rows.map((row) => ({
+      userId: row.userId,
+      costBasis: row.costBasis,
+      actualCost: row.actualCost,
+      totalCost: row.totalCost,
+      sharePercent: row.sharePercent,
+      allocatedCost: row.allocatedCost
+    })),
+    [
+      { userId: 2, costBasis: "30", actualCost: "30", totalCost: "60", sharePercent: "75.0000%", allocatedCost: "900.00" },
+      { userId: 1, costBasis: "10", actualCost: "10", totalCost: "20", sharePercent: "25.0000%", allocatedCost: "300.00" }
+    ]
+  );
+  assert.equal(report.summary.totalCostBasis, "40");
+});
+
+test("未选择的用户即使命中 usage_logs 成本基准也不参与分摊", () => {
+  const report = createUsageCostAllocationReport({
+    actualCost: "1200",
+    accounts: [account(1, "4200")],
+    costBasisRows: [
+      { userId: 1, costBasis: "10", actualCost: "10", totalCost: "20" },
+      { userId: 2, costBasis: "30", actualCost: "30", totalCost: "60" }
+    ]
+  });
+
+  assert.equal(report.summary.accounts, 1);
+  assert.equal(report.summary.totalCostBasis, "10");
+  assert.equal(report.rows[0]?.allocatedCost, "1200.00");
 });

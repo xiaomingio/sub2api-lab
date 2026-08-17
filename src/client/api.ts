@@ -25,6 +25,18 @@ function dashboardSearch(query: UsageQuery): string {
   if (query.order) {
     params.set("order", query.order);
   }
+  if (query.allocationBasis && query.allocationBasis !== "balance") {
+    params.set("allocation_basis", query.allocationBasis);
+  }
+  if (query.allocationAccountIds && query.allocationAccountIds.length > 0) {
+    params.set("allocation_account_ids", query.allocationAccountIds.join(","));
+  }
+  if (query.allocationStartAt) {
+    params.set("allocation_start_at", query.allocationStartAt);
+  }
+  if (query.allocationEndAt) {
+    params.set("allocation_end_at", query.allocationEndAt);
+  }
   return params.toString();
 }
 

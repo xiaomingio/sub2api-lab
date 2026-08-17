@@ -66,7 +66,7 @@
   }
 
   table {
-    @apply w-full min-w-[900px] border-collapse;
+    @apply w-full min-w-[1080px] border-collapse;
   }
 
   th,
@@ -84,6 +84,10 @@
 
   tbody tr:hover {
     @apply bg-[#fbfdfd];
+  }
+
+  tbody tr.is-muted-row {
+    @apply opacity-45;
   }
 }
 
@@ -146,6 +150,19 @@
     @apply grid grid-cols-[minmax(180px,260px)_minmax(180px,260px)_auto] items-end gap-3.5;
   }
 
+  .allocation-form-grid {
+    @apply grid-cols-4;
+  }
+
+  .upstream-account-field {
+    @apply col-span-2;
+  }
+
+  .balance-initial-field,
+  .allocation-start-field {
+    @apply col-start-1;
+  }
+
   .form-grid label,
   .form-field,
   .custom-range label,
@@ -159,8 +176,51 @@
     @apply h-[42px] w-full min-w-0 rounded-lg border border-[color:var(--panel-border)] px-3 text-[color:var(--text)];
   }
 
+  .field-label-row {
+    @apply flex items-center gap-1.5;
+  }
+
+  .info-tooltip {
+    @apply relative inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-[#aab6c6] bg-[#f9fbfd] text-[11px] font-extrabold leading-none text-[#5c687a];
+  }
+
+  .info-tooltip::after {
+    @apply pointer-events-none absolute left-1/2 top-[calc(100%+8px)] z-20 hidden w-max max-w-[360px] -translate-x-1/2 whitespace-pre-line rounded-md border border-[color:var(--panel-border)] bg-[color:var(--text)] px-2.5 py-2 text-left text-xs font-bold leading-5 text-white;
+    content: attr(data-tooltip);
+    box-shadow: var(--shadow);
+  }
+
+  .info-tooltip:hover::after,
+  .info-tooltip:focus-visible::after {
+    @apply block;
+  }
+
+  .upstream-account-list {
+    @apply flex min-h-[42px] max-h-[108px] min-w-0 flex-wrap gap-2 overflow-auto rounded-lg border border-[color:var(--panel-border)] bg-white p-2;
+  }
+
+  .form-grid .upstream-account-option {
+    @apply inline-flex h-7 min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md border border-[color:var(--line)] bg-[#fbfcfe] px-2 text-xs font-extrabold text-[#3e4b61];
+  }
+
+  .form-grid .upstream-account-option:hover {
+    @apply border-[#b8c3d1] bg-white;
+  }
+
+  .form-grid .upstream-account-option input {
+    @apply h-3.5 w-3.5 flex-none accent-[color:var(--accent)];
+  }
+
+  .form-grid .upstream-account-option span {
+    @apply min-w-0 max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+
+  .upstream-empty {
+    @apply flex h-7 items-center px-1 text-xs font-bold text-[color:var(--muted)];
+  }
+
   .amount-input {
-    @apply flex h-[42px] min-w-0 items-center rounded-lg border border-[color:var(--panel-border)] bg-white pr-1.5;
+    @apply flex min-w-0 items-center rounded-lg border border-[color:var(--panel-border)] bg-white;
   }
 
   .amount-input input {
@@ -305,6 +365,18 @@
     @apply text-lg;
   }
 
+  .table-title-actions {
+    @apply flex min-w-0 items-center gap-3;
+  }
+
+  .table-selection-actions {
+    @apply flex items-center gap-2;
+  }
+
+  .table-selection-actions .ghost-button {
+    @apply h-8 px-2.5 text-xs;
+  }
+
   .table-header span {
     @apply text-[13px] text-[color:var(--muted)];
   }
@@ -419,6 +491,14 @@
     @apply font-extrabold text-[color:var(--accent-strong)];
   }
 
+  .select-col {
+    @apply w-[72px] text-center;
+  }
+
+  .select-col input {
+    @apply h-4 w-4 accent-[color:var(--accent)];
+  }
+
   .user-cell {
     @apply grid gap-0.5;
   }
@@ -507,6 +587,14 @@
     @apply grid-cols-2;
   }
 
+  .allocation-form-grid {
+    @apply grid-cols-2;
+  }
+
+  .upstream-account-field {
+    @apply col-span-2;
+  }
+
   .form-grid .primary-button {
     @apply col-span-2 w-full;
   }
@@ -540,6 +628,10 @@
   .form-grid,
   .custom-range {
     @apply grid-cols-1;
+  }
+
+  .upstream-account-field {
+    @apply col-span-1;
   }
 
   .form-grid .primary-button {

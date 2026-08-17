@@ -23,6 +23,13 @@ type DateRange = {
   endDate: string;
 };
 
+type DateTimeRange = {
+  start: Date;
+  end: Date;
+  startAt: string;
+  endAt: string;
+};
+
 const presetLabels: Record<RangePreset, string> = {
   today: "今天",
   yesterday: "昨天",
@@ -57,7 +64,11 @@ function formatDateKey(date: Date, timezone: string): string {
 }
 
 function utcFromZonedDate(year: number, month: number, day: number, timezone: string): Date {
-  const utcGuess = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+  return utcFromZonedDateTime(year, month, day, 0, 0, timezone);
+}
+
+function utcFromZonedDateTime(year: number, month: number, day: number, hour: number, minute: number, timezone: string): Date {
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
   const offsetParts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     timeZoneName: "shortOffset",
@@ -98,9 +109,45 @@ function parseDateInput(value: string | undefined, fallback: string): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback;
 }
 
+function formatDateTimeInputKey(date: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value || "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+function parseDateTimeInput(value: string | undefined, fallback: string): string {
+  if (!value) {
+    return fallback;
+  }
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) ? value : fallback;
+}
+
+function fromDateTimeInputKey(value: string, timezone: string): Date {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!match) {
+    throw new Error("Invalid datetime input");
+  }
+  return utcFromZonedDateTime(Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4]), Number(match[5]), timezone);
+}
+
 function fromDateKey(dateKey: string, timezone: string): Date {
   const [year, month, day] = dateKey.split("-").map(Number);
   return utcFromZonedDate(year, month, day, timezone);
+}
+
+function defaultDateTimeRangeStart(timezone: string): Date {
+  const now = new Date();
+  const todayParts = zonedDateParts(now, timezone);
+  const todayStart = utcFromZonedDate(todayParts.year, todayParts.month, todayParts.day, timezone);
+  return addDays(todayStart, -30);
 }
 
 function formatInclusiveEndDateKey(end: Date, timezone: string): string {
@@ -172,5 +219,29 @@ export function resolveDateRange(params: {
   };
 }
 
+export function resolveDateTimeRange(params: {
+  startAt?: string;
+  endAt?: string;
+  timezone: string;
+  fallback: Pick<DateRange, "start" | "end">;
+}): DateTimeRange {
+  const fallbackStartAt = formatDateTimeInputKey(defaultDateTimeRangeStart(params.timezone), params.timezone);
+  const fallbackEndAt = formatDateTimeInputKey(params.fallback.end, params.timezone);
+  const startAt = parseDateTimeInput(params.startAt, fallbackStartAt);
+  const endAt = parseDateTimeInput(params.endAt, fallbackEndAt);
+  const start = fromDateTimeInputKey(startAt, params.timezone);
+  const end = fromDateTimeInputKey(endAt, params.timezone);
+  if (start.getTime() < end.getTime()) {
+    return { start, end, startAt, endAt };
+  }
+  const adjustedEnd = new Date(start.getTime() + 60_000);
+  return {
+    start,
+    end: adjustedEnd,
+    startAt,
+    endAt: formatDateTimeInputKey(adjustedEnd, params.timezone)
+  };
+}
+
 export { presetLabels };
-export type { DateRange, RangePreset };
+export type { DateRange, DateTimeRange, RangePreset };

@@ -1,13 +1,20 @@
 /*
- * 文件说明: React 管理台主页面，组织成本分摊、余额恢复和用量统计三个独立工作区。
+ * 文件说明: React 管理台主页面，组织成本分摊、余额设置和用量统计三个独立工作区。
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { compareSystemBalancesDesc, createBalanceReport, normalizeInitialBalance, systemBalancesMatch } from "../balances.js";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  compareSystemBalancesDesc,
+  createBalanceReport,
+  createUsageCostAllocationReport,
+  normalizeInitialBalance,
+  systemBalancesMatch
+} from "../balances.js";
 import { presetLabels } from "../ranges.js";
-import type { BalanceAccount, BalanceAllocationRow } from "../balances.js";
+import type { BalanceAccount, BalanceAllocationRow, UsageCostAllocationRow } from "../balances.js";
 import type { RangePreset } from "../ranges.js";
 import type { UsageSortKey } from "../usage.js";
+import type { AllocationBasis, UpstreamAccount } from "../usage_costs.js";
 import { fetchDashboard, restoreBalances } from "./api.js";
 import {
   type ActualCostCurrency,
@@ -22,7 +29,7 @@ import type { DashboardData, DashboardTab, RestoreResult, UsageQuery } from "./t
 const tabLabels: Record<DashboardTab, string> = {
   usage: "用量统计",
   allocation: "成本分摊",
-  restore: "余额恢复"
+  balance: "余额设置"
 };
 
 const sortHeaders: Array<{ key: UsageSortKey; label: string; numeric?: boolean }> = [
@@ -54,24 +61,86 @@ const actualCostCurrencies: Array<{ value: ActualCostCurrency; label: string }> 
   { value: "USD", label: "美元" }
 ];
 
+const allocationBasisOptions: Array<{ value: AllocationBasis; label: string }> = [
+  { value: "balance", label: "系统余额" },
+  { value: "actual_cost", label: "实际费用" },
+  { value: "total_cost", label: "标准费用" }
+];
+
+type AllocationSortKey =
+  | "user"
+  | "current_balance"
+  | "actual_cost"
+  | "total_cost"
+  | "basis"
+  | "share_percent"
+  | "allocated_cost";
+
+type AllocationSort = {
+  key: AllocationSortKey;
+  order: "asc" | "desc";
+};
+
+type AllocationDisplayRow = BalanceAccount & {
+  actualCostValue: string;
+  totalCostValue: string;
+  basisValue: string;
+  selected: boolean;
+  sharePercent: string;
+  allocatedCost: string;
+};
+
+type AllocationColumn = {
+  key: AllocationSortKey;
+  label: string;
+  numeric?: boolean;
+  strong?: boolean;
+  cost?: boolean;
+  render: (row: AllocationDisplayRow) => ReactNode;
+};
+
 function initialTab(): DashboardTab {
   const tab = new URLSearchParams(window.location.search).get("tab");
-  return tab === "allocation" || tab === "restore" ? tab : "usage";
+  return tab === "allocation" || tab === "balance" ? tab : "usage";
 }
 
 function initialUsageQuery(): UsageQuery {
   const params = new URLSearchParams(window.location.search);
+  const allocationBasis = params.get("allocation_basis");
   return {
     preset: params.get("preset") || undefined,
     startDate: params.get("start_date") || undefined,
     endDate: params.get("end_date") || undefined,
     sort: (params.get("sort") || undefined) as UsageSortKey | undefined,
-    order: params.get("order") === "asc" ? "asc" : undefined
+    order: params.get("order") === "asc" ? "asc" : undefined,
+    allocationBasis: allocationBasis === "actual_cost" || allocationBasis === "total_cost" ? allocationBasis : "balance",
+    allocationAccountIds: parseAccountIdsParam(params),
+    allocationStartAt: params.get("allocation_start_at") || undefined,
+    allocationEndAt: params.get("allocation_end_at") || undefined
   };
+}
+
+function normalizeAccountIds(ids: Array<number | undefined> | undefined): number[] {
+  if (!ids) {
+    return [];
+  }
+  return [...new Set(ids.filter((id): id is number => typeof id === "number" && Number.isInteger(id) && id > 0))].sort(
+    (left, right) => left - right
+  );
+}
+
+function parseAccountIdsParam(params: URLSearchParams): number[] {
+  const rawValues = params.getAll("allocation_account_ids");
+  return normalizeAccountIds(rawValues.flatMap((value) => value.split(",").map((item) => Number(item.trim()))));
 }
 
 function accountName(account: Pick<BalanceAccount, "email" | "username" | "userId">): string {
   return account.email || account.username || `用户 #${account.userId}`;
+}
+
+function parseDisplayNumber(value: string): number {
+  const parsed = Number(value.replace(/[^\d.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function compareAccountsByName(left: BalanceAccount, right: BalanceAccount): number {
@@ -85,12 +154,22 @@ function compareAccountsByName(left: BalanceAccount, right: BalanceAccount): num
 function updateUrl(tab: DashboardTab, usageQuery: UsageQuery) {
   const params = new URLSearchParams();
   params.set("tab", tab);
-  if (tab === "usage") {
+  if (tab === "usage" || tab === "allocation") {
     if (usageQuery.preset) params.set("preset", usageQuery.preset);
     if (usageQuery.startDate) params.set("start_date", usageQuery.startDate);
     if (usageQuery.endDate) params.set("end_date", usageQuery.endDate);
+  }
+  if (tab === "usage") {
     if (usageQuery.sort) params.set("sort", usageQuery.sort);
     if (usageQuery.order) params.set("order", usageQuery.order);
+  }
+  if (tab === "allocation" && usageQuery.allocationBasis && usageQuery.allocationBasis !== "balance") {
+    params.set("allocation_basis", usageQuery.allocationBasis);
+    if (usageQuery.allocationAccountIds && usageQuery.allocationAccountIds.length > 0) {
+      params.set("allocation_account_ids", usageQuery.allocationAccountIds.join(","));
+    }
+    if (usageQuery.allocationStartAt) params.set("allocation_start_at", usageQuery.allocationStartAt);
+    if (usageQuery.allocationEndAt) params.set("allocation_end_at", usageQuery.allocationEndAt);
   }
   window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
 }
@@ -107,6 +186,23 @@ function isNonZeroBalance(account: BalanceAccount): boolean {
   return !systemBalancesMatch(account.currentBalance, "0");
 }
 
+function isPositiveDecimal(value: string | undefined): boolean {
+  return Number(value || "0") > 0;
+}
+
+function defaultAllocationSelectedUserIds(data: DashboardData, allocationBasis: AllocationBasis | undefined): Set<number> {
+  if (allocationBasis === "actual_cost" || allocationBasis === "total_cost") {
+    return new Set(data.allocationUsage.rows.filter((row) => isPositiveDecimal(row.costBasis)).map((row) => row.userId));
+  }
+  return idsFromAccounts(data.balanceAccounts.filter(isNonZeroBalance));
+}
+
+function allocationSelectionKey(query: UsageQuery): string {
+  const basis = query.allocationBasis || "balance";
+  const accountIds = normalizeAccountIds(query.allocationAccountIds).join(",");
+  return [basis, query.allocationStartAt || "", query.allocationEndAt || "", accountIds].join("|");
+}
+
 function sortAccountsByCurrentBalanceDesc(accounts: BalanceAccount[]): BalanceAccount[] {
   return [...accounts].sort(
     (left, right) => compareSystemBalancesDesc(left.currentBalance, right.currentBalance) || compareAccountsByName(left, right)
@@ -120,20 +216,6 @@ function compareZeroCurrentBalanceLast(left: BalanceAccount, right: BalanceAccou
   return leftIsZero ? 1 : -1;
 }
 
-function sortAccountsBySystemConsumedDesc(accounts: BalanceAccount[], initialBalance: string): BalanceAllocationRow[] {
-  const report = createBalanceReport({
-    accounts,
-    initialBalance,
-    actualCost: "0"
-  });
-  return [...report.rows].sort(
-    (left, right) =>
-      compareZeroCurrentBalanceLast(left, right) ||
-      compareSystemBalancesDesc(left.systemConsumed, right.systemConsumed) ||
-      compareAccountsByName(left, right)
-  );
-}
-
 function sortAllocationRowsForDisplay(rows: BalanceAllocationRow[]): BalanceAllocationRow[] {
   return [...rows].sort(
     (left, right) =>
@@ -141,6 +223,58 @@ function sortAllocationRowsForDisplay(rows: BalanceAllocationRow[]): BalanceAllo
       compareSystemBalancesDesc(left.systemConsumed, right.systemConsumed) ||
       compareAccountsByName(left, right)
   );
+}
+
+function upstreamAccountName(account: UpstreamAccount): string {
+  return `${account.name} #${account.accountId}`;
+}
+
+function accountIdsMatch(left: number[], right: number[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((id, index) => id === right[index]);
+}
+
+function toggleUserId(selectedUserIds: Set<number>, userId: number, checked: boolean): Set<number> {
+  const next = new Set(selectedUserIds);
+  if (checked) {
+    next.add(userId);
+  } else {
+    next.delete(userId);
+  }
+  return next;
+}
+
+function compareAllocationRows(left: AllocationDisplayRow, right: AllocationDisplayRow, key: AllocationSortKey): number {
+  if (key === "user") {
+    return compareAccountsByName(left, right);
+  }
+  const leftValue =
+    key === "current_balance"
+      ? left.currentBalance
+      : key === "actual_cost"
+        ? left.actualCostValue
+        : key === "total_cost"
+          ? left.totalCostValue
+          : key === "basis"
+            ? left.basisValue
+            : key === "share_percent"
+              ? left.sharePercent
+              : left.allocatedCost;
+  const rightValue =
+    key === "current_balance"
+      ? right.currentBalance
+      : key === "actual_cost"
+        ? right.actualCostValue
+        : key === "total_cost"
+          ? right.totalCostValue
+          : key === "basis"
+            ? right.basisValue
+            : key === "share_percent"
+              ? right.sharePercent
+              : right.allocatedCost;
+  return parseDisplayNumber(leftValue) - parseDisplayNumber(rightValue);
 }
 
 function MetricGrid(props: { metrics: Array<{ label: string; value: string }> }) {
@@ -222,47 +356,298 @@ function AccountPicker(props: {
 
 function AllocationTab(props: {
   data: DashboardData;
+  usageQuery: UsageQuery;
   selectedUserIds: Set<number>;
+  onUsageQueryChange: (query: UsageQuery) => void;
   onSelectedUserIdsChange: (selectedUserIds: Set<number>) => void;
 }) {
   const [initialBalance, setInitialBalance] = useState(props.data.defaults.initialBalance);
   const [actualCost, setActualCost] = useState(props.data.defaults.actualCost);
   const [actualCostCurrency, setActualCostCurrency] = useState<ActualCostCurrency>("CNY");
-  const sortedAccounts = useMemo(
-    () => sortAccountsBySystemConsumedDesc(props.data.balanceAccounts, initialBalance),
-    [initialBalance, props.data.balanceAccounts]
+  const [allocationSort, setAllocationSort] = useState<AllocationSort>({ key: "basis", order: "desc" });
+  const allocationBasis = props.usageQuery.allocationBasis || "balance";
+  const isBalanceBasis = allocationBasis === "balance";
+  const selectedUpstreamAccountIds = isBalanceBasis ? [] : normalizeAccountIds(props.usageQuery.allocationAccountIds);
+  const allocationRange = props.data.allocationRange;
+  const allocationRangeMatches =
+    (!props.usageQuery.allocationStartAt || props.usageQuery.allocationStartAt === allocationRange.startAt) &&
+    (!props.usageQuery.allocationEndAt || props.usageQuery.allocationEndAt === allocationRange.endAt);
+  const usageCostRowsMatch =
+    props.data.allocationUsage.metric === (isBalanceBasis ? null : allocationBasis) &&
+    accountIdsMatch(props.data.allocationUsage.accountIds, selectedUpstreamAccountIds) &&
+    allocationRangeMatches;
+  const usageCostRows = usageCostRowsMatch ? props.data.allocationUsage.rows : [];
+  const usageCostByUserId = useMemo(() => new Map(usageCostRows.map((row) => [row.userId, row])), [usageCostRows]);
+  const selectedAllocationAccounts = useMemo(
+    () => selectedAccounts(props.data.balanceAccounts, props.selectedUserIds),
+    [props.data.balanceAccounts, props.selectedUserIds]
   );
-  const systemConsumedByUserId = useMemo(
-    () => new Map(sortedAccounts.map((account) => [account.userId, "systemConsumed" in account ? account.systemConsumed : "0"])),
-    [sortedAccounts]
-  );
-  const allocationReport = useMemo(
+  const balanceAllocationReport = useMemo(
     () =>
       createBalanceReport({
-        accounts: selectedAccounts(props.data.balanceAccounts, props.selectedUserIds),
+        accounts: selectedAllocationAccounts,
         initialBalance,
         actualCost
       }),
-    [actualCost, initialBalance, props.data.balanceAccounts, props.selectedUserIds]
+    [actualCost, initialBalance, selectedAllocationAccounts]
   );
-  const allocationRows = useMemo(() => sortAllocationRowsForDisplay(allocationReport.rows), [allocationReport.rows]);
+  const allBalanceRows = useMemo(
+    () =>
+      sortAllocationRowsForDisplay(
+        createBalanceReport({
+          accounts: props.data.balanceAccounts,
+          initialBalance,
+          actualCost: "0"
+        }).rows
+      ),
+    [initialBalance, props.data.balanceAccounts]
+  );
+  const selectedUsageCostAllocationReport = useMemo(
+    () =>
+      createUsageCostAllocationReport({
+        accounts: selectedAllocationAccounts,
+        costBasisRows: usageCostRows,
+        actualCost
+      }),
+    [actualCost, selectedAllocationAccounts, usageCostRows]
+  );
+  const allUsageCostRows = useMemo(
+    () =>
+      createUsageCostAllocationReport({
+        accounts: props.data.balanceAccounts,
+        costBasisRows: usageCostRows,
+        actualCost: "0"
+      }).rows,
+    [props.data.balanceAccounts, usageCostRows]
+  );
+  const allocationRows = useMemo<AllocationDisplayRow[]>(() => {
+    if (isBalanceBasis) {
+      const selectedRowsByUserId = new Map(balanceAllocationReport.rows.map((row) => [row.userId, row]));
+      return allBalanceRows.map((row) => ({
+        ...row,
+        actualCostValue: formatUsageCost(Number(usageCostByUserId.get(row.userId)?.actualCost || "0")),
+        totalCostValue: formatUsageCost(Number(usageCostByUserId.get(row.userId)?.totalCost || "0")),
+        basisValue: formatSystemBalance(selectedRowsByUserId.get(row.userId)?.systemConsumed || "0"),
+        selected: props.selectedUserIds.has(row.userId),
+        sharePercent: selectedRowsByUserId.get(row.userId)?.sharePercent || "0.0000%",
+        allocatedCost: selectedRowsByUserId.get(row.userId)?.allocatedCost || "0.00"
+      }));
+    }
+    const selectedRowsByUserId = new Map(selectedUsageCostAllocationReport.rows.map((row) => [row.userId, row]));
+    return allUsageCostRows.map((row: UsageCostAllocationRow) => ({
+      ...row,
+      basisValue: formatUsageCost(Number(row.costBasis)),
+      actualCostValue: formatUsageCost(Number(row.actualCost)),
+      totalCostValue: formatUsageCost(Number(row.totalCost)),
+      selected: props.selectedUserIds.has(row.userId),
+      sharePercent: selectedRowsByUserId.get(row.userId)?.sharePercent || "0.0000%",
+      allocatedCost: selectedRowsByUserId.get(row.userId)?.allocatedCost || "0.00"
+    }));
+  }, [
+    allBalanceRows,
+    allUsageCostRows,
+    balanceAllocationReport.rows,
+    isBalanceBasis,
+    props.selectedUserIds,
+    selectedUsageCostAllocationReport.rows,
+    usageCostByUserId
+  ]);
+  const summary = isBalanceBasis ? balanceAllocationReport.summary : selectedUsageCostAllocationReport.summary;
+  const basisTotal = isBalanceBasis
+    ? formatSystemBalance(balanceAllocationReport.summary.totalSystemConsumed)
+    : formatUsageCost(Number(selectedUsageCostAllocationReport.summary.totalCostBasis));
+  const basisTotalLabel =
+    allocationBasis === "balance" ? "系统消耗合计" : allocationBasis === "actual_cost" ? "实际费用合计" : "标准费用合计";
+  const consumingAccountsLabel =
+    allocationBasis === "balance" ? "有系统消耗" : allocationBasis === "actual_cost" ? "有实际费用" : "有标准费用";
+  const basisLabel =
+    allocationBasis === "balance"
+      ? "统计基准（系统消耗）"
+      : allocationBasis === "actual_cost"
+        ? "统计基准（实际费用）"
+        : "统计基准（标准费用）";
+  const allocationColumns: AllocationColumn[] = useMemo(() => {
+    const systemBalanceColumn: AllocationColumn = {
+      key: "current_balance",
+      label: "系统余额",
+      numeric: true,
+      render: (row) => formatSystemBalance(row.currentBalance)
+    };
+    const actualCostColumn: AllocationColumn = {
+      key: "actual_cost",
+      label: "实际费用",
+      numeric: true,
+      render: (row) => row.actualCostValue
+    };
+    const totalCostColumn: AllocationColumn = {
+      key: "total_cost",
+      label: "标准费用",
+      numeric: true,
+      render: (row) => row.totalCostValue
+    };
+    const basisColumn: AllocationColumn = {
+      key: "basis",
+      label: basisLabel,
+      numeric: true,
+      strong: true,
+      render: (row) => row.basisValue
+    };
+    const trailingColumns: AllocationColumn[] = [
+      {
+        key: "share_percent",
+        label: "分摊比例",
+        numeric: true,
+        render: (row) => row.sharePercent
+      },
+      {
+        key: "allocated_cost",
+        label: "分担成本",
+        numeric: true,
+        cost: true,
+        render: (row) => formatActualCost(row.allocatedCost, actualCostCurrency)
+      }
+    ];
+
+    if (isBalanceBasis) {
+      return [
+        {
+          key: "user",
+          label: "账号",
+          render: (row) => (
+            <div className="user-cell">
+              <span>{accountName(row)}</span>
+              <small>#{row.userId}</small>
+            </div>
+          )
+        },
+        systemBalanceColumn,
+        totalCostColumn,
+        actualCostColumn,
+        basisColumn,
+        ...trailingColumns
+      ];
+    }
+
+    return [
+      {
+        key: "user",
+        label: "账号",
+        render: (row) => (
+          <div className="user-cell">
+            <span>{accountName(row)}</span>
+            <small>#{row.userId}</small>
+          </div>
+        )
+      },
+      systemBalanceColumn,
+      totalCostColumn,
+      actualCostColumn,
+      basisColumn,
+      ...trailingColumns
+    ];
+  }, [actualCostCurrency, basisLabel, isBalanceBasis]);
+  const sortedAllocationRows = useMemo(
+    () =>
+      [...allocationRows].sort((left, right) => {
+        const comparison = compareAllocationRows(left, right, allocationSort.key) || compareAccountsByName(left, right);
+        return allocationSort.order === "asc" ? comparison : -comparison;
+      }),
+    [allocationRows, allocationSort]
+  );
+
+  function sortAllocationBy(key: AllocationSortKey) {
+    setAllocationSort((current) => ({
+      key,
+      order: current.key === key && current.order === "desc" ? "asc" : "desc"
+    }));
+  }
+
+  function changeAllocationBasis(nextBasis: AllocationBasis) {
+    if (nextBasis === "balance") {
+      props.onSelectedUserIdsChange(idsFromAccounts(props.data.balanceAccounts.filter(isNonZeroBalance)));
+    }
+    props.onUsageQueryChange({
+      ...props.usageQuery,
+      allocationBasis: nextBasis,
+      allocationAccountIds: nextBasis === "balance" ? [] : selectedUpstreamAccountIds
+    });
+  }
+
+  function changeUpstreamAccount(accountId: number, checked: boolean) {
+    const nextIds = new Set(selectedUpstreamAccountIds);
+    if (checked) {
+      nextIds.add(accountId);
+    } else {
+      nextIds.delete(accountId);
+    }
+    props.onUsageQueryChange({
+      ...props.usageQuery,
+      allocationAccountIds: normalizeAccountIds([...nextIds])
+    });
+  }
+
+  function selectAllAllocationRows() {
+    const nextSelectedUserIds = new Set(props.selectedUserIds);
+    for (const row of allocationRows) {
+      nextSelectedUserIds.add(row.userId);
+    }
+    props.onSelectedUserIdsChange(nextSelectedUserIds);
+  }
+
+  function invertAllocationRows() {
+    const nextSelectedUserIds = new Set(props.selectedUserIds);
+    for (const row of allocationRows) {
+      if (nextSelectedUserIds.has(row.userId)) {
+        nextSelectedUserIds.delete(row.userId);
+      } else {
+        nextSelectedUserIds.add(row.userId);
+      }
+    }
+    props.onSelectedUserIdsChange(nextSelectedUserIds);
+  }
 
   return (
     <section className="tab-panel is-active" aria-label="成本分摊">
       <div className="section-intro">
         <p>
-          月结时使用：选择实际参与使用的账号，用“上月初始系统额度 - 当前系统余额”计算系统消耗，再按消耗占比分摊真实采购成本；这里只计算，不写入余额。
+          月结时使用：按所选统计口径计算每个用户的消耗基准，再按占比分摊真实采购成本；这里只计算，不写入余额。
         </p>
       </div>
 
       <section className="tool-panel">
-        <div className="form-grid">
-          <label>
-            <span>上月初始系统额度</span>
-            <input value={initialBalance} inputMode="decimal" onChange={(event) => setInitialBalance(event.target.value)} />
-          </label>
+        <div className="form-grid allocation-form-grid">
           <div className="form-field">
-            <label htmlFor="actual-cost">实际采购总成本</label>
+            <span className="field-label-row">
+              <span>统计口径</span>
+              <span
+                className="info-tooltip"
+                tabIndex={0}
+                role="img"
+                aria-label="系统余额按初始额度减剩余额度计算；实际费用按设置的分组倍率计算，对应 usage_logs.actual_cost；标准费用按模型官方价格计算，对应 usage_logs.total_cost"
+                data-tooltip={
+                  "系统余额：初始额度 - 当前系统余额\n实际费用：按设置的分组倍率计算，字段 usage_logs.actual_cost\n标准费用：按模型官方价格计算，字段 usage_logs.total_cost"
+                }
+              >
+                i
+              </span>
+            </span>
+            <div className="currency-tabs" role="tablist" aria-label="统计口径">
+              {allocationBasisOptions.map((option) => (
+                <button
+                  className={allocationBasis === option.value ? "is-active" : ""}
+                  type="button"
+                  role="tab"
+                  aria-selected={allocationBasis === option.value}
+                  key={option.value}
+                  onClick={() => changeAllocationBasis(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="form-field">
+            <label htmlFor="actual-cost">采购总成本</label>
             <div className="amount-input">
               <input
                 id="actual-cost"
@@ -286,62 +671,136 @@ function AllocationTab(props: {
               </div>
             </div>
           </div>
-          <div className="inline-note">输入或勾选变化后自动重新计算</div>
+          {isBalanceBasis ? (
+            <label className="balance-initial-field">
+              <span>初始系统余额</span>
+              <input value={initialBalance} inputMode="decimal" onChange={(event) => setInitialBalance(event.target.value)} />
+            </label>
+          ) : null}
+          {!isBalanceBasis ? (
+            <>
+              <label className="allocation-start-field">
+                <span>开始时间</span>
+                <input
+                  type="datetime-local"
+                  value={allocationRange.startAt}
+                  onChange={(event) =>
+                    props.onUsageQueryChange({
+                      ...props.usageQuery,
+                      allocationStartAt: event.target.value,
+                      allocationEndAt: props.usageQuery.allocationEndAt || allocationRange.endAt
+                    })
+                  }
+                />
+              </label>
+              <label className="allocation-end-field">
+                <span>结束时间</span>
+                <input
+                  type="datetime-local"
+                  value={allocationRange.endAt}
+                  onChange={(event) =>
+                    props.onUsageQueryChange({
+                      ...props.usageQuery,
+                      allocationStartAt: props.usageQuery.allocationStartAt || allocationRange.startAt,
+                      allocationEndAt: event.target.value
+                    })
+                  }
+                />
+              </label>
+              <div className="form-field upstream-account-field">
+                <span>上游账号</span>
+                <div className="upstream-account-list" aria-label="上游账号">
+                  {props.data.upstreamAccounts.length === 0 ? (
+                    <span className="upstream-empty">暂无上游账号</span>
+                  ) : (
+                    props.data.upstreamAccounts.map((account) => (
+                      <label className="upstream-account-option" title={`${upstreamAccountName(account)} · ${account.platform}/${account.type}`} key={account.accountId}>
+                        <input
+                          type="checkbox"
+                          checked={selectedUpstreamAccountIds.includes(account.accountId)}
+                          onChange={(event) => changeUpstreamAccount(account.accountId, event.target.checked)}
+                        />
+                        <span>{upstreamAccountName(account)}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
-        <AccountPicker
-          accounts={sortedAccounts}
-          selectedUserIds={props.selectedUserIds}
-          sortDescription="余额为 0 的账号排末尾，其余按系统消耗从高到低排列"
-          getDetailSuffix={(account) => `系统消耗 ${formatSystemBalance(systemConsumedByUserId.get(account.userId) || "0")}`}
-          onChange={props.onSelectedUserIdsChange}
-        />
       </section>
 
       <MetricGrid
         metrics={[
-          { label: "参与账号", value: formatInteger(allocationReport.summary.accounts) },
-          { label: "有系统消耗", value: formatInteger(allocationReport.summary.consumingAccounts) },
-          { label: "系统消耗合计", value: formatSystemBalance(allocationReport.summary.totalSystemConsumed) },
-          { label: "已分摊实际成本", value: formatActualCost(allocationReport.summary.allocatedCost, actualCostCurrency) }
+          { label: "参与账号", value: formatInteger(summary.accounts) },
+          { label: consumingAccountsLabel, value: formatInteger(summary.consumingAccounts) },
+          { label: basisTotalLabel, value: basisTotal },
+          { label: "已分摊实际成本", value: formatActualCost(summary.allocatedCost, actualCostCurrency) }
         ]}
       />
 
       <section className="table-section">
         <div className="table-header">
-          <h2>分摊结果</h2>
-          <span>余额为 0 的账号排末尾，其余按系统消耗从高到低排序</span>
+          <div className="table-title-actions">
+            <h2>分摊结果</h2>
+            <div className="table-selection-actions">
+              <button className="ghost-button" type="button" disabled={allocationRows.length === 0} onClick={selectAllAllocationRows}>
+                全选
+              </button>
+              <button className="ghost-button" type="button" disabled={allocationRows.length === 0} onClick={invertAllocationRows}>
+                反选
+              </button>
+            </div>
+          </div>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>账号</th>
-                <th className="num">当前系统余额</th>
-                <th className="num">系统消耗</th>
-                <th className="num">分摊比例</th>
-                <th className="num">应承担采购成本</th>
+                <th className="select-col">参与</th>
+                {allocationColumns.map((column) => {
+                  const active = allocationSort.key === column.key;
+                  const marker = active ? (allocationSort.order === "desc" ? " ↓" : " ↑") : "";
+                  return (
+                    <th className={`${column.numeric ? "num " : ""}sortable`} key={column.label}>
+                      <button type="button" onClick={() => sortAllocationBy(column.key)}>
+                        {column.label}
+                        {marker}
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
               {allocationRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="empty-cell">
-                    请选择参与上月分摊的账号后再计算
+                  <td colSpan={allocationColumns.length + 1} className="empty-cell">
+                    当前没有可展示的用户
                   </td>
                 </tr>
               ) : (
-                allocationRows.map((row) => (
-                  <tr key={row.userId}>
-                    <td>
-                      <div className="user-cell">
-                        <span>{accountName(row)}</span>
-                        <small>#{row.userId}</small>
-                      </div>
+                sortedAllocationRows.map((row) => (
+                  <tr className={!row.selected ? "is-muted-row" : ""} key={row.userId}>
+                    <td className="select-col">
+                      <input
+                        type="checkbox"
+                        checked={row.selected}
+                        aria-label={`选择 ${accountName(row)} 参与成本分摊`}
+                        onChange={(event) =>
+                          props.onSelectedUserIdsChange(toggleUserId(props.selectedUserIds, row.userId, event.target.checked))
+                        }
+                      />
                     </td>
-                    <td className="num">{formatSystemBalance(row.currentBalance)}</td>
-                    <td className="num strong">{formatSystemBalance(row.systemConsumed)}</td>
-                    <td className="num">{row.sharePercent}</td>
-                    <td className="num cost">{formatActualCost(row.allocatedCost, actualCostCurrency)}</td>
+                    {allocationColumns.map((column) => (
+                      <td
+                        className={`${column.numeric ? "num " : ""}${column.strong ? "strong " : ""}${column.cost ? "cost" : ""}`.trim()}
+                        key={column.label}
+                      >
+                        {column.render(row)}
+                      </td>
+                    ))}
                   </tr>
                 ))
               )}
@@ -353,7 +812,7 @@ function AllocationTab(props: {
   );
 }
 
-function RestoreTab(props: { data: DashboardData; onRefresh: () => void }) {
+function BalanceSettingsTab(props: { data: DashboardData; onRefresh: () => void }) {
   const [targetBalance, setTargetBalance] = useState(props.data.defaults.restoreTargetBalance);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
   const [confirming, setConfirming] = useState(false);
@@ -390,7 +849,7 @@ function RestoreTab(props: { data: DashboardData; onRefresh: () => void }) {
   }
 
   return (
-    <section className="tab-panel is-active" aria-label="余额恢复">
+    <section className="tab-panel is-active" aria-label="余额设置">
       <div className="section-intro">
         <p>
           下月开用前使用：只把勾选账号的系统余额覆盖为新的目标额度，未选择账号不会变化；提交前会再次确认，不影响成本分摊页的计算结果。
@@ -416,7 +875,7 @@ function RestoreTab(props: { data: DashboardData; onRefresh: () => void }) {
             disabled={!canSubmit || submitting}
             onClick={() => setConfirming(true)}
           >
-            {submitting ? "写入中" : "恢复所选账号"}
+            {submitting ? "写入中" : "设置所选账号"}
           </button>
           <button className="ghost-button" type="button" onClick={props.onRefresh}>
             刷新当前余额
@@ -434,7 +893,7 @@ function RestoreTab(props: { data: DashboardData; onRefresh: () => void }) {
 
       <dialog className="confirm-dialog" ref={dialogRef} onCancel={() => setConfirming(false)}>
         <form method="dialog">
-          <h2>确认恢复余额</h2>
+          <h2>确认设置系统余额</h2>
           <p>
             将把 {selected.length} 个账号的系统余额覆盖为 {formatSystemBalance(targetBalance)}。这会写入 Sub2API 并记录余额调整历史：
             {selected.map(accountName).join("、")}
@@ -640,6 +1099,7 @@ export function App() {
   const [error, setError] = useState("");
   const [allocationSelectedUserIds, setAllocationSelectedUserIds] = useState<Set<number>>(new Set());
   const allocationInitialized = useRef(false);
+  const allocationSelectionKeyRef = useRef("");
 
   async function loadDashboard() {
     setLoading(true);
@@ -647,9 +1107,11 @@ export function App() {
     try {
       const payload = await fetchDashboard(usageQuery);
       setData(payload);
-      if (!allocationInitialized.current) {
-        setAllocationSelectedUserIds(idsFromAccounts(payload.balanceAccounts.filter(isNonZeroBalance)));
+      const nextAllocationSelectionKey = allocationSelectionKey(usageQuery);
+      if (!allocationInitialized.current || allocationSelectionKeyRef.current !== nextAllocationSelectionKey) {
+        setAllocationSelectedUserIds(defaultAllocationSelectedUserIds(payload, usageQuery.allocationBasis));
         allocationInitialized.current = true;
+        allocationSelectionKeyRef.current = nextAllocationSelectionKey;
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "加载数据失败，请稍后重试。");
@@ -706,11 +1168,13 @@ export function App() {
           {tab === "allocation" ? (
             <AllocationTab
               data={data}
+              usageQuery={usageQuery}
               selectedUserIds={allocationSelectedUserIds}
+              onUsageQueryChange={(query) => setUsageQuery(query)}
               onSelectedUserIdsChange={setAllocationSelectedUserIds}
             />
           ) : null}
-          {tab === "restore" ? <RestoreTab data={data} onRefresh={() => void loadDashboard()} /> : null}
+          {tab === "balance" ? <BalanceSettingsTab data={data} onRefresh={() => void loadDashboard()} /> : null}
         </>
       ) : null}
     </main>

@@ -1,10 +1,11 @@
 /*
- * 文件说明: 读取全部普通用户的系统余额，并按系统消耗比例精确分摊实际采购成本。
+ * 文件说明: 读取普通用户系统余额，并把余额消耗或用量成本基准按比例分摊实际采购成本。
  */
 
 import type { Db } from "./db.js";
 
 const systemBalanceScale = 8;
+const usageCostBasisScale = 10;
 const actualCostScale = 2;
 const maxSystemBalanceUnits = 99_999_999_999_999_999_999n;
 const maxActualCostUnits = 99_999_999_999_999n;
@@ -26,6 +27,33 @@ type BalanceAllocationRow = BalanceAccount & {
   allocatedCost: string;
 };
 
+type UsageCostBasisRow = {
+  userId: number;
+  costBasis: string;
+  actualCost: string;
+  totalCost: string;
+};
+
+type UsageCostAllocationRow = BalanceAccount & {
+  costBasis: string;
+  actualCost: string;
+  totalCost: string;
+  sharePercent: string;
+  allocatedCost: string;
+};
+
+type UsageCostAllocationReport = {
+  rows: UsageCostAllocationRow[];
+  actualCost: string;
+  summary: {
+    accounts: number;
+    consumingAccounts: number;
+    totalCostBasis: string;
+    allocatedCost: string;
+    unallocatedCost: string;
+  };
+};
+
 type BalanceReport = {
   rows: BalanceAllocationRow[];
   initialBalance: string;
@@ -45,6 +73,20 @@ type UserBalanceQueryRow = {
   username: string;
   status: string;
   current_balance: string;
+};
+
+type WeightedAllocation<TAccount extends BalanceAccount> = {
+  account: TAccount;
+  basisUnits: bigint;
+  allocatedCostUnits: bigint;
+  remainder: bigint;
+};
+
+type WeightedAllocationResult<TAccount extends BalanceAccount> = {
+  allocations: Array<WeightedAllocation<TAccount>>;
+  totalBasisUnits: bigint;
+  actualCost: string;
+  actualCostUnits: bigint;
 };
 
 function powerOfTen(scale: number): bigint {
@@ -111,6 +153,48 @@ function formatPercent(numerator: bigint, denominator: bigint): string {
   const integer = scaled / 10_000n;
   const fraction = (scaled % 10_000n).toString().padStart(4, "0");
   return `${integer}.${fraction}%`;
+}
+
+function createWeightedAllocations<TAccount extends BalanceAccount>(params: {
+  accounts: TAccount[];
+  actualCost?: unknown;
+  getBasisUnits: (account: TAccount) => bigint;
+}): WeightedAllocationResult<TAccount> {
+  const actualCost = normalizeActualCost(params.actualCost) || defaultActualCost;
+  const actualCostUnits = parseFixedDecimal(actualCost, actualCostScale) as bigint;
+  const allocations = params.accounts.map((account) => ({
+    account,
+    basisUnits: params.getBasisUnits(account),
+    allocatedCostUnits: 0n,
+    remainder: 0n
+  }));
+  const totalBasisUnits = allocations.reduce((sum, row) => sum + row.basisUnits, 0n);
+
+  if (totalBasisUnits > 0n && actualCostUnits > 0n) {
+    let allocatedUnits = 0n;
+    for (const row of allocations) {
+      const weightedCost = row.basisUnits * actualCostUnits;
+      row.allocatedCostUnits = weightedCost / totalBasisUnits;
+      row.remainder = weightedCost % totalBasisUnits;
+      allocatedUnits += row.allocatedCostUnits;
+    }
+
+    const rankedRemainders = [...allocations].sort(
+      (left, right) =>
+        (left.remainder === right.remainder ? left.account.userId - right.account.userId : left.remainder > right.remainder ? -1 : 1)
+    );
+    const remainingUnits = actualCostUnits - allocatedUnits;
+    for (let index = 0; BigInt(index) < remainingUnits; index += 1) {
+      rankedRemainders[index].allocatedCostUnits += 1n;
+    }
+  }
+
+  return {
+    allocations,
+    totalBasisUnits,
+    actualCost,
+    actualCostUnits
+  };
 }
 
 export function normalizeInitialBalance(value: unknown): string | null {
@@ -182,66 +266,94 @@ export function createBalanceReport(params: {
   actualCost?: unknown;
 }): BalanceReport {
   const initialBalance = normalizeInitialBalance(params.initialBalance) || defaultInitialBalance;
-  const actualCost = normalizeActualCost(params.actualCost) || defaultActualCost;
   const initialUnits = parseFixedDecimal(initialBalance, systemBalanceScale) as bigint;
-  const actualCostUnits = parseFixedDecimal(actualCost, actualCostScale) as bigint;
-  const allocations = params.accounts.map((account) => {
-    const currentUnits = parseStoredBalance(account.currentBalance, account.userId);
-    const consumedUnits = initialUnits > currentUnits ? initialUnits - currentUnits : 0n;
-    return {
-      account,
-      consumedUnits,
-      allocatedCostUnits: 0n,
-      remainder: 0n
-    };
+  const allocation = createWeightedAllocations({
+    accounts: params.accounts,
+    actualCost: params.actualCost,
+    getBasisUnits(account) {
+      const currentUnits = parseStoredBalance(account.currentBalance, account.userId);
+      return initialUnits > currentUnits ? initialUnits - currentUnits : 0n;
+    }
   });
-  const totalConsumedUnits = allocations.reduce((sum, row) => sum + row.consumedUnits, 0n);
 
-  if (totalConsumedUnits > 0n && actualCostUnits > 0n) {
-    let allocatedUnits = 0n;
-    for (const row of allocations) {
-      const weightedCost = row.consumedUnits * actualCostUnits;
-      row.allocatedCostUnits = weightedCost / totalConsumedUnits;
-      row.remainder = weightedCost % totalConsumedUnits;
-      allocatedUnits += row.allocatedCostUnits;
-    }
-
-    const rankedRemainders = [...allocations].sort(
-      (left, right) =>
-        (left.remainder === right.remainder ? left.account.userId - right.account.userId : left.remainder > right.remainder ? -1 : 1)
-    );
-    const remainingUnits = actualCostUnits - allocatedUnits;
-    for (let index = 0; BigInt(index) < remainingUnits; index += 1) {
-      rankedRemainders[index].allocatedCostUnits += 1n;
-    }
-  }
-
-  const rows = allocations
+  const rows = allocation.allocations
     .sort((left, right) =>
-      left.consumedUnits === right.consumedUnits
+      left.basisUnits === right.basisUnits
         ? left.account.userId - right.account.userId
-        : left.consumedUnits > right.consumedUnits
+        : left.basisUnits > right.basisUnits
           ? -1
           : 1
     )
     .map<BalanceAllocationRow>((row) => ({
       ...row.account,
-      systemConsumed: formatFixedDecimal(row.consumedUnits, systemBalanceScale),
-      sharePercent: formatPercent(row.consumedUnits, totalConsumedUnits),
+      systemConsumed: formatFixedDecimal(row.basisUnits, systemBalanceScale),
+      sharePercent: formatPercent(row.basisUnits, allocation.totalBasisUnits),
       allocatedCost: formatFixedDecimal(row.allocatedCostUnits, actualCostScale, actualCostScale)
     }));
 
-  const allocatedCostUnits = totalConsumedUnits > 0n ? actualCostUnits : 0n;
+  const allocatedCostUnits = allocation.totalBasisUnits > 0n ? allocation.actualCostUnits : 0n;
   return {
     rows,
     initialBalance,
-    actualCost,
+    actualCost: allocation.actualCost,
     summary: {
       accounts: rows.length,
-      consumingAccounts: allocations.filter((row) => row.consumedUnits > 0n).length,
-      totalSystemConsumed: formatFixedDecimal(totalConsumedUnits, systemBalanceScale),
+      consumingAccounts: allocation.allocations.filter((row) => row.basisUnits > 0n).length,
+      totalSystemConsumed: formatFixedDecimal(allocation.totalBasisUnits, systemBalanceScale),
       allocatedCost: formatFixedDecimal(allocatedCostUnits, actualCostScale, actualCostScale),
-      unallocatedCost: formatFixedDecimal(actualCostUnits - allocatedCostUnits, actualCostScale, actualCostScale)
+      unallocatedCost: formatFixedDecimal(allocation.actualCostUnits - allocatedCostUnits, actualCostScale, actualCostScale)
+    }
+  };
+}
+
+export function createUsageCostAllocationReport(params: {
+  accounts: BalanceAccount[];
+  costBasisRows: UsageCostBasisRow[];
+  actualCost?: unknown;
+}): UsageCostAllocationReport {
+  const basisByUserId = new Map<number, bigint>();
+  for (const row of params.costBasisRows) {
+    const basisUnits = parseFixedDecimal(row.costBasis, usageCostBasisScale);
+    if (basisUnits === null || basisUnits < 0n) {
+      throw new Error(`用户 #${row.userId} 的用量成本基准格式无效`);
+    }
+    basisByUserId.set(row.userId, basisUnits);
+  }
+
+  const allocation = createWeightedAllocations({
+    accounts: params.accounts,
+    actualCost: params.actualCost,
+    getBasisUnits(account) {
+      return basisByUserId.get(account.userId) || 0n;
+    }
+  });
+  const rows = allocation.allocations
+    .sort((left, right) =>
+      left.basisUnits === right.basisUnits
+        ? left.account.userId - right.account.userId
+        : left.basisUnits > right.basisUnits
+          ? -1
+          : 1
+    )
+    .map<UsageCostAllocationRow>((row) => ({
+      ...row.account,
+      costBasis: formatFixedDecimal(row.basisUnits, usageCostBasisScale),
+      actualCost: params.costBasisRows.find((basisRow) => basisRow.userId === row.account.userId)?.actualCost || "0",
+      totalCost: params.costBasisRows.find((basisRow) => basisRow.userId === row.account.userId)?.totalCost || "0",
+      sharePercent: formatPercent(row.basisUnits, allocation.totalBasisUnits),
+      allocatedCost: formatFixedDecimal(row.allocatedCostUnits, actualCostScale, actualCostScale)
+    }));
+
+  const allocatedCostUnits = allocation.totalBasisUnits > 0n ? allocation.actualCostUnits : 0n;
+  return {
+    rows,
+    actualCost: allocation.actualCost,
+    summary: {
+      accounts: rows.length,
+      consumingAccounts: allocation.allocations.filter((row) => row.basisUnits > 0n).length,
+      totalCostBasis: formatFixedDecimal(allocation.totalBasisUnits, usageCostBasisScale),
+      allocatedCost: formatFixedDecimal(allocatedCostUnits, actualCostScale, actualCostScale),
+      unallocatedCost: formatFixedDecimal(allocation.actualCostUnits - allocatedCostUnits, actualCostScale, actualCostScale)
     }
   };
 }
@@ -260,4 +372,4 @@ export async function getBalanceReport(params: {
 }
 
 export { defaultActualCost, defaultInitialBalance };
-export type { BalanceAccount, BalanceAllocationRow, BalanceReport };
+export type { BalanceAccount, BalanceAllocationRow, BalanceReport, UsageCostAllocationReport, UsageCostAllocationRow, UsageCostBasisRow };
