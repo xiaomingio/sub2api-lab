@@ -70,9 +70,9 @@ const allocationBasisOptions: Array<{ value: AllocationBasis; label: string }> =
 type AllocationSortKey =
   | "user"
   | "current_balance"
+  | "system_consumed"
   | "actual_cost"
   | "total_cost"
-  | "basis"
   | "share_percent"
   | "allocated_cost";
 
@@ -246,6 +246,13 @@ function toggleUserId(selectedUserIds: Set<number>, userId: number, checked: boo
   return next;
 }
 
+function allocationBasisSortKey(basis: AllocationBasis): AllocationSortKey {
+  if (basis === "balance") {
+    return "system_consumed";
+  }
+  return basis;
+}
+
 function compareAllocationRows(left: AllocationDisplayRow, right: AllocationDisplayRow, key: AllocationSortKey): number {
   if (key === "user") {
     return compareAccountsByName(left, right);
@@ -253,27 +260,27 @@ function compareAllocationRows(left: AllocationDisplayRow, right: AllocationDisp
   const leftValue =
     key === "current_balance"
       ? left.currentBalance
+      : key === "system_consumed"
+        ? left.basisValue
       : key === "actual_cost"
         ? left.actualCostValue
         : key === "total_cost"
           ? left.totalCostValue
-          : key === "basis"
-            ? left.basisValue
-            : key === "share_percent"
-              ? left.sharePercent
-              : left.allocatedCost;
+          : key === "share_percent"
+            ? left.sharePercent
+            : left.allocatedCost;
   const rightValue =
     key === "current_balance"
       ? right.currentBalance
+      : key === "system_consumed"
+        ? right.basisValue
       : key === "actual_cost"
         ? right.actualCostValue
         : key === "total_cost"
           ? right.totalCostValue
-          : key === "basis"
-            ? right.basisValue
-            : key === "share_percent"
-              ? right.sharePercent
-              : right.allocatedCost;
+          : key === "share_percent"
+            ? right.sharePercent
+            : right.allocatedCost;
   return parseDisplayNumber(leftValue) - parseDisplayNumber(rightValue);
 }
 
@@ -361,12 +368,15 @@ function AllocationTab(props: {
   onUsageQueryChange: (query: UsageQuery) => void;
   onSelectedUserIdsChange: (selectedUserIds: Set<number>) => void;
 }) {
+  const allocationBasis = props.usageQuery.allocationBasis || "balance";
+  const isBalanceBasis = allocationBasis === "balance";
   const [initialBalance, setInitialBalance] = useState(props.data.defaults.initialBalance);
   const [actualCost, setActualCost] = useState(props.data.defaults.actualCost);
   const [actualCostCurrency, setActualCostCurrency] = useState<ActualCostCurrency>("CNY");
-  const [allocationSort, setAllocationSort] = useState<AllocationSort>({ key: "basis", order: "desc" });
-  const allocationBasis = props.usageQuery.allocationBasis || "balance";
-  const isBalanceBasis = allocationBasis === "balance";
+  const [allocationSort, setAllocationSort] = useState<AllocationSort>({
+    key: allocationBasisSortKey(allocationBasis),
+    order: "desc"
+  });
   const selectedUpstreamAccountIds = isBalanceBasis ? [] : normalizeAccountIds(props.usageQuery.allocationAccountIds);
   const allocationRange = props.data.allocationRange;
   const allocationRangeMatches =
@@ -460,12 +470,6 @@ function AllocationTab(props: {
     allocationBasis === "balance" ? "系统消耗合计" : allocationBasis === "actual_cost" ? "实际费用合计" : "标准费用合计";
   const consumingAccountsLabel =
     allocationBasis === "balance" ? "有系统消耗" : allocationBasis === "actual_cost" ? "有实际费用" : "有标准费用";
-  const basisLabel =
-    allocationBasis === "balance"
-      ? "统计基准（系统消耗）"
-      : allocationBasis === "actual_cost"
-        ? "统计基准（实际费用）"
-        : "统计基准（标准费用）";
   const allocationColumns: AllocationColumn[] = useMemo(() => {
     const systemBalanceColumn: AllocationColumn = {
       key: "current_balance",
@@ -473,24 +477,26 @@ function AllocationTab(props: {
       numeric: true,
       render: (row) => formatSystemBalance(row.currentBalance)
     };
+    const systemConsumedColumn: AllocationColumn = {
+      key: "system_consumed",
+      label: "系统消耗（统计基准）",
+      numeric: true,
+      strong: true,
+      render: (row) => row.basisValue
+    };
     const actualCostColumn: AllocationColumn = {
       key: "actual_cost",
-      label: "实际费用",
+      label: allocationBasis === "actual_cost" ? "实际费用（统计基准）" : "实际费用",
       numeric: true,
+      strong: allocationBasis === "actual_cost",
       render: (row) => row.actualCostValue
     };
     const totalCostColumn: AllocationColumn = {
       key: "total_cost",
-      label: "标准费用",
+      label: allocationBasis === "total_cost" ? "标准费用（统计基准）" : "标准费用",
       numeric: true,
+      strong: allocationBasis === "total_cost",
       render: (row) => row.totalCostValue
-    };
-    const basisColumn: AllocationColumn = {
-      key: "basis",
-      label: basisLabel,
-      numeric: true,
-      strong: true,
-      render: (row) => row.basisValue
     };
     const trailingColumns: AllocationColumn[] = [
       {
@@ -521,7 +527,7 @@ function AllocationTab(props: {
           )
         },
         systemBalanceColumn,
-        basisColumn,
+        systemConsumedColumn,
         ...trailingColumns
       ];
     }
@@ -540,10 +546,9 @@ function AllocationTab(props: {
       systemBalanceColumn,
       totalCostColumn,
       actualCostColumn,
-      basisColumn,
       ...trailingColumns
     ];
-  }, [actualCostCurrency, basisLabel, isBalanceBasis]);
+  }, [actualCostCurrency, allocationBasis, isBalanceBasis]);
   const sortedAllocationRows = useMemo(
     () =>
       [...allocationRows].sort((left, right) => {
@@ -561,7 +566,7 @@ function AllocationTab(props: {
   }
 
   function changeAllocationBasis(nextBasis: AllocationBasis) {
-    setAllocationSort({ key: "basis", order: "desc" });
+    setAllocationSort({ key: allocationBasisSortKey(nextBasis), order: "desc" });
     if (nextBasis === "balance") {
       props.onSelectedUserIdsChange(idsFromAccounts(props.data.balanceAccounts.filter(isNonZeroBalance)));
     }
@@ -671,16 +676,22 @@ function AllocationTab(props: {
             </div>
           </div>
           {isBalanceBasis ? (
-            <label className="balance-initial-field">
-              <span>初始系统余额</span>
-              <input value={initialBalance} inputMode="decimal" onChange={(event) => setInitialBalance(event.target.value)} />
-            </label>
+            <div className="form-field balance-initial-field">
+              <label htmlFor="initial-balance">初始系统余额</label>
+              <input
+                id="initial-balance"
+                value={initialBalance}
+                inputMode="decimal"
+                onChange={(event) => setInitialBalance(event.target.value)}
+              />
+            </div>
           ) : null}
           {!isBalanceBasis ? (
             <>
-              <label className="allocation-start-field">
-                <span>开始时间</span>
+              <div className="form-field allocation-start-field">
+                <label htmlFor="allocation-start-at">开始时间</label>
                 <input
+                  id="allocation-start-at"
                   type="datetime-local"
                   value={allocationRange.startAt}
                   onChange={(event) =>
@@ -691,10 +702,11 @@ function AllocationTab(props: {
                     })
                   }
                 />
-              </label>
-              <label className="allocation-end-field">
-                <span>结束时间</span>
+              </div>
+              <div className="form-field allocation-end-field">
+                <label htmlFor="allocation-end-at">结束时间</label>
                 <input
+                  id="allocation-end-at"
                   type="datetime-local"
                   value={allocationRange.endAt}
                   onChange={(event) =>
@@ -705,7 +717,7 @@ function AllocationTab(props: {
                     })
                   }
                 />
-              </label>
+              </div>
               <div className="form-field upstream-account-field">
                 <span>上游账号</span>
                 <div className="upstream-account-list" aria-label="上游账号">

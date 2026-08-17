@@ -151,7 +151,7 @@
   }
 
   .allocation-form-grid {
-    @apply grid-cols-4;
+    @apply grid-cols-4 items-start;
   }
 
   .upstream-account-field {
