@@ -4,8 +4,8 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { Db } from "../src/db.js";
-import { getUsageCostBasisReport } from "../src/usage_costs.js";
+import type { Db } from "../src/server/db.js";
+import { getUsageCostBasisReport } from "../src/shared/usage-costs.js";
 
 test("系统余额口径不查询 usage_logs 费用基准", async () => {
   let queryCount = 0;

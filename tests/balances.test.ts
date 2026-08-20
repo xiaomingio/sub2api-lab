@@ -4,8 +4,8 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compareSystemBalancesDesc, createBalanceReport, createUsageCostAllocationReport } from "../src/balances.js";
-import type { BalanceAccount } from "../src/balances.js";
+import { compareSystemBalancesDesc, createBalanceReport, createUsageCostAllocationReport } from "../src/shared/allocation.js";
+import type { BalanceAccount } from "../src/shared/allocation.js";
 
 function account(userId: number, currentBalance: string): BalanceAccount {
   return {

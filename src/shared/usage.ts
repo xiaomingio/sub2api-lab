@@ -3,7 +3,7 @@
  */
 
 import type { DateRange } from "./ranges.js";
-import type { Db } from "./db.js";
+import type { Db } from "../server/db.js";
 
 type UsageRow = {
   userId: number;

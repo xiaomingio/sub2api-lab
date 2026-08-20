@@ -2,7 +2,7 @@
  * 文件说明: 查询 usage_logs 原始调用记录，并按数据库当前字段结构返回记录表数据。
  */
 
-import type { DateRange } from "./ranges.js";
+import type { DateRange } from "../shared/ranges.js";
 import type { Db } from "./db.js";
 
 type UsageRecord = Record<string, unknown>;

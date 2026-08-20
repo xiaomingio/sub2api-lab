@@ -1,0 +1,186 @@
+/*
+ * 文件说明: 组装 Fastify 应用、注册页面和 JSON API 路由。
+ */
+
+import fastifyStatic from "@fastify/static";
+import Fastify from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { defaultActualCost, defaultInitialBalance, listBalanceAccounts, normalizeInitialBalance } from "../shared/allocation.js";
+import type { BalanceAccount } from "../shared/allocation.js";
+import type { AppConfig } from "./config.js";
+import type { Db } from "./db.js";
+import { resolveDateRange, resolveDateTimeRange } from "../shared/ranges.js";
+import { createSub2APIAdminClient, restoreSelectedUserBalances } from "./sub2api-admin.js";
+import { getUserUsageSummary } from "../shared/usage.js";
+import { getUsageCostBasisReport, listUpstreamAccounts, normalizeAllocationBasis, parseAccountIds } from "../shared/usage-costs.js";
+import { getUsageRecords } from "./usage-records.js";
+import { registerRoutes } from "./routes.js";
+
+type UsageQuery = {
+  preset?: string;
+  start_date?: string;
+  end_date?: string;
+  sort?: string;
+  order?: string;
+  allocation_basis?: string;
+  allocation_account_ids?: string | string[];
+  allocation_start_at?: string;
+  allocation_end_at?: string;
+  limit?: string;
+};
+
+type RestoreRequestBody = {
+  targetBalance?: unknown;
+  userIds?: unknown;
+};
+
+type AppOptions = {
+  config: AppConfig;
+  db: Db;
+  clientDir: string;
+};
+
+function pathFor(basePath: string, suffix: string): string {
+  return `${basePath}${suffix}` || "/";
+}
+
+function parseBodyUserIds(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  const ids = value.map((raw) => Number(raw));
+  if (ids.some((id) => !Number.isInteger(id) || id <= 0)) return null;
+  return [...new Set(ids)];
+}
+
+export function createHandlers({ config, db, clientDir }: AppOptions) {
+  const restoreClient = config.sub2api.adminApiKey
+    ? createSub2APIAdminClient({ baseUrl: config.sub2api.baseUrl, adminApiKey: config.sub2api.adminApiKey })
+    : null;
+
+  async function sendHtml(reply: FastifyReply, name: "index" | "login") {
+    const html = await readFile(path.join(clientDir, `${name}.html`), "utf8");
+    return reply.type("text/html; charset=utf-8").send(html);
+  }
+
+  async function dashboardApi(request: FastifyRequest) {
+    const query = request.query as UsageQuery;
+    const range = resolveDateRange({
+      preset: query.preset,
+      startDate: query.start_date,
+      endDate: query.end_date,
+      timezone: config.timezone,
+      defaultPreset: config.defaultRange
+    });
+    const allocationBasis = normalizeAllocationBasis(query.allocation_basis);
+    const allocationRange = resolveDateTimeRange({
+      startAt: query.allocation_start_at,
+      endAt: query.allocation_end_at,
+      timezone: config.timezone,
+      fallback: range
+    });
+    const allocationAccountIds = allocationBasis === "balance" ? [] : parseAccountIds(query.allocation_account_ids);
+    const [usage, balanceAccounts, upstreamAccounts, allocationUsage] = await Promise.all([
+      getUserUsageSummary({ db, range, timezone: config.timezone, limit: config.maxRows, sortKey: query.sort, sortOrder: query.order }),
+      listBalanceAccounts(db),
+      listUpstreamAccounts(db),
+      getUsageCostBasisReport({ db, range: allocationRange, basis: allocationBasis, accountIds: allocationAccountIds })
+    ]);
+
+    return {
+      title: "Sub2API Lab",
+      basePath: config.basePath,
+      timezone: config.timezone,
+      maxRows: config.maxRows,
+      defaults: { initialBalance: defaultInitialBalance, actualCost: defaultActualCost, restoreTargetBalance: defaultInitialBalance },
+      restore: {
+        enabled: Boolean(restoreClient),
+        disabledReason: restoreClient ? "" : "未配置 Sub2API 管理员 API Key，暂时不能执行余额写入"
+      },
+      balanceAccounts,
+      upstreamAccounts,
+      allocationRange,
+      allocationUsage,
+      usage
+    };
+  }
+
+  async function usageApi(request: FastifyRequest) {
+    const query = request.query as UsageQuery;
+    const range = resolveDateRange({
+      preset: query.preset,
+      startDate: query.start_date,
+      endDate: query.end_date,
+      timezone: config.timezone,
+      defaultPreset: config.defaultRange
+    });
+    return getUserUsageSummary({
+      db,
+      range,
+      timezone: config.timezone,
+      limit: config.maxRows,
+      sortKey: query.sort,
+      sortOrder: query.order
+    });
+  }
+
+  async function usageRecordsApi(request: FastifyRequest) {
+    const query = request.query as UsageQuery;
+    const range = resolveDateRange({
+      preset: query.preset,
+      startDate: query.start_date,
+      endDate: query.end_date,
+      timezone: config.timezone,
+      defaultPreset: config.defaultRange
+    });
+    return getUsageRecords({ db, range, limit: query.limit, defaultLimit: config.maxRows });
+  }
+
+  async function restoreBalanceApi(request: FastifyRequest, reply: FastifyReply) {
+    if (!restoreClient) return reply.code(503).send({ error: "未配置 Sub2API 管理员 API Key，不能执行余额设置" });
+    const body = request.body as RestoreRequestBody;
+    const targetBalance = normalizeInitialBalance(body?.targetBalance);
+    if (!targetBalance) return reply.code(400).send({ error: "下月新系统额度必须是大于 0 的金额" });
+    const userIds = parseBodyUserIds(body?.userIds);
+    if (!userIds || userIds.length === 0) return reply.code(400).send({ error: "请选择需要设置系统余额的账号" });
+
+    const accounts = await listBalanceAccounts(db);
+    const accountById = new Map(accounts.map((account) => [account.userId, account]));
+    const unknownUserIds = userIds.filter((userId) => !accountById.has(userId));
+    if (unknownUserIds.length > 0) {
+      return reply.code(400).send({ error: `以下账号不存在或不是可恢复的普通账号：${unknownUserIds.join(", ")}` });
+    }
+    const selectedAccounts = userIds
+      .map((userId) => accountById.get(userId))
+      .filter((account): account is BalanceAccount => account !== undefined);
+    const result = await restoreSelectedUserBalances({
+      accounts: selectedAccounts,
+      targetBalance,
+      operationId: randomUUID(),
+      client: restoreClient
+    });
+    return { targetBalance, selectedUserIds: userIds, ...result };
+  }
+
+  return { dashboardApi, sendHtml, usageApi, usageRecordsApi, restoreBalanceApi };
+}
+
+type RouteHandlers = ReturnType<typeof createHandlers>;
+
+export function createApp(options: AppOptions): FastifyInstance {
+  const app = Fastify({ logger: true });
+  app.register(fastifyStatic, {
+    root: path.join(options.clientDir, "assets"),
+    prefix: pathFor(options.config.basePath, "/assets/")
+  });
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_request, body, done) => done(null, body)
+  );
+  registerRoutes(app, options, createHandlers(options));
+  return app;
+}
+
+export type { AppOptions, RouteHandlers };

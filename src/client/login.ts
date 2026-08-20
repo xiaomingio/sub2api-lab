@@ -2,7 +2,7 @@
  * 文件说明: 静态登录页交互脚本，设置登录提交路径、next 参数和失败提示。
  */
 
-import "../styles.css";
+import "./styles.css";
 
 const params = new URLSearchParams(window.location.search);
 const form = document.querySelector<HTMLFormElement>("[data-login-form]");

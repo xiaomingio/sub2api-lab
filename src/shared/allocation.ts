@@ -2,7 +2,7 @@
  * 文件说明: 读取普通用户系统余额，并把余额消耗或用量成本基准按比例分摊实际采购成本。
  */
 
-import type { Db } from "./db.js";
+import type { Db } from "../server/db.js";
 
 const systemBalanceScale = 8;
 const usageCostBasisScale = 10;

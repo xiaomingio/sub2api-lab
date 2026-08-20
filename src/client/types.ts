@@ -2,10 +2,10 @@
  * 文件说明: 定义 React 管理台使用的后端 JSON API 数据结构。
  */
 
-import type { BalanceAccount } from "../balances.js";
-import type { RangePreset } from "../ranges.js";
-import type { SortOrder, UsageRow, UsageSortKey } from "../usage.js";
-import type { AllocationBasis, UpstreamAccount, UsageCostBasisReport } from "../usage_costs.js";
+import type { BalanceAccount } from "../shared/allocation.js";
+import type { RangePreset } from "../shared/ranges.js";
+import type { SortOrder, UsageRow, UsageSortKey } from "../shared/usage.js";
+import type { AllocationBasis, UpstreamAccount, UsageCostBasisReport } from "../shared/usage-costs.js";
 
 type SerializedDateRange = {
   preset: RangePreset;

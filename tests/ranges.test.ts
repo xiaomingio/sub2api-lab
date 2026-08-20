@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
-import { resolveDateTimeRange } from "../src/ranges.js";
+import { resolveDateTimeRange } from "../src/shared/ranges.js";
 
 test("成本分摊开始时间默认是 30 天前的本地 0 点", () => {
   mock.timers.enable({ apis: ["Date"], now: new Date("2026-08-17T05:46:00.000Z") });

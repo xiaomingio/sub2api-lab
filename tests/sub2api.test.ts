@@ -4,9 +4,9 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { BalanceAccount } from "../src/balances.js";
-import { createSub2APIAdminClient, restoreSelectedUserBalances } from "../src/sub2api.js";
-import type { SetBalanceInput, Sub2APIAdminClient } from "../src/sub2api.js";
+import type { BalanceAccount } from "../src/shared/allocation.js";
+import { createSub2APIAdminClient, restoreSelectedUserBalances } from "../src/server/sub2api-admin.js";
+import type { SetBalanceInput, Sub2APIAdminClient } from "../src/server/sub2api-admin.js";
 
 function account(userId: number, currentBalance: string): BalanceAccount {
   return {

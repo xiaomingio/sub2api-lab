@@ -3,8 +3,8 @@
  */
 
 import type { DateRange, DateTimeRange } from "./ranges.js";
-import type { Db } from "./db.js";
-import type { UsageCostBasisRow } from "./balances.js";
+import type { Db } from "../server/db.js";
+import type { UsageCostBasisRow } from "./allocation.js";
 
 type AllocationBasis = "balance" | "actual_cost" | "total_cost";
 

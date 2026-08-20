@@ -3,8 +3,8 @@
  * 参考资料: Wei-Shaw/sub2api 管理员用户余额接口。
  */
 
-import type { BalanceAccount } from "./balances.js";
-import { systemBalancesMatch } from "./balances.js";
+import type { BalanceAccount } from "../shared/allocation.js";
+import { systemBalancesMatch } from "../shared/allocation.js";
 
 type SetBalanceInput = {
   userId: number;
