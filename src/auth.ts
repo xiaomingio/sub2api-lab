@@ -18,7 +18,7 @@ type LoginForm = {
 };
 
 const cookieName = "sub2api_lab_session";
-const maxAgeSeconds = 7 * 24 * 60 * 60;
+const maxAgeSeconds = 180 * 24 * 60 * 60;
 const sessionVersion = "v1";
 
 function safeEqual(a: string, b: string): boolean {
