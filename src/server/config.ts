@@ -42,7 +42,7 @@ function getIntegerEnv(name: string, fallback: number): number {
   return value;
 }
 
-const defaultRange = "last_24_hours";
+const defaultRange = "last_14_days";
 const maxRows = 1000;
 
 function getDatabaseUrl(): string {

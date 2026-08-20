@@ -50,6 +50,16 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
     setCustomEnd(range.endDate);
   }, [range.endDate, range.startDate]);
 
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (event.target instanceof Node && !pickerRef.current?.contains(event.target)) {
+        closePicker();
+      }
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, []);
+
   function closePicker() {
     pickerRef.current?.removeAttribute("open");
   }

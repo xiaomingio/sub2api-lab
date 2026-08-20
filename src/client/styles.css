@@ -142,6 +142,19 @@
     grid-template-rows: auto auto minmax(0, 1fr);
   }
 
+  .usage-panel,
+  .allocation-panel {
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+
+  .balance-panel {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .balance-intro {
+    @apply grid min-w-0 gap-[18px];
+  }
+
   .page-content {
     @apply min-h-0 min-w-0 overflow-hidden;
   }
@@ -171,11 +184,11 @@
 
   .tool-panel,
   .table-section {
-    @apply rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)];
+    @apply min-h-0 rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)];
   }
 
   .tool-panel {
-    @apply grid min-w-0 gap-4 p-5;
+    @apply grid min-w-0 gap-4 overflow-auto p-5;
   }
 
   .form-grid {
