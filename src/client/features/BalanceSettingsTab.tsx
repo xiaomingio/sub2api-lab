@@ -56,7 +56,7 @@ export function BalanceSettingsTab(props: { data: DashboardData; onRefresh: () =
 
       {!props.data.restore.enabled ? <div className="status-message is-warning">{props.data.restore.disabledReason}</div> : null}
 
-      <section className="tool-panel">
+      <div className="tool-panel">
         <div className="form-grid">
           <label>
             <span>下月新系统额度</span>
@@ -87,7 +87,7 @@ export function BalanceSettingsTab(props: { data: DashboardData; onRefresh: () =
           onChange={setSelectedUserIds}
         />
         {result ? <div className={`status-message is-${result.state}`}>{result.text}</div> : null}
-      </section>
+      </div>
 
       <dialog className="confirm-dialog" ref={dialogRef} onCancel={() => setConfirming(false)}>
         <form method="dialog">

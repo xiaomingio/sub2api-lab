@@ -69,19 +69,6 @@ export function App() {
 
   return (
     <main className="page-shell">
-      <header className="topbar">
-        <div>
-          <h1>{data?.title || "Sub2API Lab"}</h1>
-        </div>
-        <div className="top-actions">
-          <form method="post" action="logout">
-            <button className="logout-button" type="submit">
-              退出
-            </button>
-          </form>
-        </div>
-      </header>
-
       <nav className="tab-nav" aria-label="功能标签页">
         {Object.entries(tabLabels).map(([key, label]) => (
           <button
@@ -94,6 +81,11 @@ export function App() {
             {label}
           </button>
         ))}
+        <form className="tab-nav-logout" method="post" action="logout">
+          <button className="logout-button" type="submit">
+            退出
+          </button>
+        </form>
       </nav>
 
       <div className="page-content">

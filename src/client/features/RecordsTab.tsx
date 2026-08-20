@@ -1,10 +1,12 @@
 /*
  * 文件说明: 使用记录工作区，负责原始调用记录的筛选和表格展示。
+ * 参考资料: Sub2API frontend/src/views/admin/UsageView.vue 与 components/admin/usage/UsageTable.vue。
  */
 
 import { DataTable } from "../components/DataTable.js";
 import { DateRangePicker } from "../components/DateRangePicker.js";
 import { formatDateTime, formatInteger } from "../format.js";
+import { requestTypeLabel } from "../../shared/request-type.js";
 import { recordLabels } from "./shared.js";
 import type { DashboardData, UsageQuery, UsageRecordsData } from "../types.js";
 
@@ -27,16 +29,16 @@ export function RecordsTab(props: {
         onChange={(change) => props.onUsageQueryChange({ ...props.usageQuery, ...change })}
       />
 
-      <section className="records-toolbar" aria-label="记录加载设置">
+      <div className="records-toolbar">
         <label className="records-limit-field">
           <span>每页记录数</span>
           <input type="number" min="1" max="10000" step="1" value={props.limit} onChange={(event) => props.onLimitChange(Math.min(10000, Math.max(1, Number(event.target.value) || 1)))} />
         </label>
         <span className="records-meta">共 {formatInteger(props.records?.total || 0)} 条，当前显示 {formatInteger(props.records?.rows.length || 0)} 条</span>
         {props.loading ? <span className="records-meta" role="status">正在更新记录...</span> : null}
-      </section>
+      </div>
 
-      <section className="table-section records-table-section">
+      <div className="table-section records-table-section">
         <DataTable
           rows={props.records?.rows || []}
           columns={props.records?.columns}
@@ -45,7 +47,7 @@ export function RecordsTab(props: {
           emptyText={props.loading ? "正在加载使用记录" : "当前时间范围内没有使用记录"}
           renderCell={(value, key) => <span title={displayRecordValue(value)}>{formatRecordValue(value, key, props.data.timezone)}</span>}
         />
-      </section>
+      </div>
     </section>
   );
 }
@@ -57,6 +59,11 @@ function displayRecordValue(value: unknown): string {
 
 function formatRecordValue(value: unknown, key: string, timezone: string): string {
   if (value === null || value === undefined || value === "") return "-";
+  if (key === "request_type" || key === "stream" || key === "is_stream") {
+    const label = requestTypeLabel(value);
+    if (label) return label;
+    if (typeof value === "boolean") return value ? "是" : "否";
+  }
   if (isRecordDateKey(key)) {
     const parsed = new Date(String(value));
     if (!Number.isNaN(parsed.getTime())) return formatDateTime(parsed, timezone);

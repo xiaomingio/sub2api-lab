@@ -271,7 +271,7 @@ export function AllocationTab(props: {
         </p>
       </div>
 
-      <section className="tool-panel">
+      <div className="tool-panel">
         <div className="form-grid allocation-form-grid">
           <div className="form-field">
             <span className="field-label-row">
@@ -393,7 +393,7 @@ export function AllocationTab(props: {
             </>
           ) : null}
         </div>
-      </section>
+      </div>
 
       <MetricGrid
         metrics={[
@@ -404,7 +404,7 @@ export function AllocationTab(props: {
         ]}
       />
 
-      <section className="table-section">
+      <div className="table-section">
         <div className="table-header">
           <div className="table-title-actions">
             <h2>分摊结果</h2>
@@ -471,7 +471,7 @@ export function AllocationTab(props: {
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
     </section>
   );
 }

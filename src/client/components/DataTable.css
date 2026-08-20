@@ -19,25 +19,39 @@
 }
 
 .data-table-heading {
-  @apply flex min-h-7 items-center gap-1;
+  @apply grid min-h-8 w-full items-center gap-0;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.data-table-sort-area {
+  @apply flex min-h-8 min-w-0 w-full items-center gap-1 rounded-md border-0 bg-transparent pl-1.5 pr-0 text-left text-xs font-extrabold text-[#526070];
+}
+
+.data-table-sortable {
+  @apply cursor-pointer;
+}
+
+.data-table-sortable:hover {
+  @apply bg-[#eef7f6];
+}
+
+.data-table-sortable:focus-visible {
+  @apply outline outline-2 outline-offset-[-2px] outline-[color:var(--accent)];
 }
 
 .data-table-label {
-  @apply min-w-0 flex-1 cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent p-0 text-left text-xs font-extrabold text-[#526070];
+  @apply min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
-.data-table-label:hover {
-  @apply text-[color:var(--accent-strong)];
+.data-table-sort {
+  @apply inline-flex h-6 w-6 flex-none items-center justify-center text-base font-bold leading-none text-[#91a2b8];
 }
 
-.data-table-sort,
 .data-table-filter-button {
   @apply inline-flex h-7 w-7 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-base font-bold leading-none text-[#91a2b8];
 }
 
-.data-table-sort:hover,
 .data-table-filter-button:hover,
-.data-table-sort.is-active,
 .data-table-filter-button.is-active {
   @apply bg-white text-[#24334b] shadow-[0_0_0_1px_var(--panel-border)];
 }

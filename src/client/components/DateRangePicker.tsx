@@ -57,7 +57,7 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
   const rangeText = `${formatDateTime(range.start, timezone)} 至 ${formatDateTime(range.end, timezone)}`;
 
   return (
-    <section className="range-section" aria-label="时间范围">
+    <div className="range-section">
       <span className="section-label">时间范围：{rangeText}</span>
       <details className="range-picker" ref={pickerRef}>
         <summary>
@@ -102,7 +102,7 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
           </form>
         </div>
       </details>
-    </section>
+    </div>
   );
 }
 

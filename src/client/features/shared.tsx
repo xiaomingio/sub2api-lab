@@ -152,6 +152,12 @@ function updateUrl(tab: DashboardTab, usageQuery: UsageQuery) {
 }
 
 const recordLabels: Record<string, string> = {
+  user: "用户",
+  api_key: "API Key",
+  account: "上游账号",
+  inbound_endpoint: "入站接口",
+  upstream_endpoint: "上游接口",
+  group: "分组",
   id: "ID",
   user_id: "用户 ID",
   api_key_id: "API Key ID",
@@ -160,7 +166,6 @@ const recordLabels: Record<string, string> = {
   provider: "提供商",
   platform: "平台",
   model: "模型",
-  endpoint: "接口",
   path: "路径",
   method: "请求方法",
   status: "状态",
@@ -171,12 +176,20 @@ const recordLabels: Record<string, string> = {
   updated_at: "更新时间",
   input_tokens: "输入 Token",
   output_tokens: "输出 Token",
+  input_cost: "输入费用",
+  output_cost: "输出费用",
   cache_creation_tokens: "缓存创建 Token",
   cache_read_tokens: "缓存读取 Token",
+  cache_creation_cost: "缓存创建费用",
+  cache_read_cost: "缓存读取费用",
   image_output_tokens: "图片输出 Token",
   total_tokens: "总 Token",
   total_cost: "标准费用",
   actual_cost: "实际费用",
+  first_token_ms: "首 Token 延迟",
+  duration_ms: "总耗时",
+  request_type: "请求类型",
+  billing_mode: "计费模式",
   currency: "货币",
   stream: "流式响应",
   is_stream: "流式响应",
@@ -297,14 +310,14 @@ function compareAllocationRows(left: AllocationDisplayRow, right: AllocationDisp
 
 function MetricGrid(props: { metrics: Array<{ label: string; value: string }> }) {
   return (
-    <section className="metric-grid" aria-label="汇总">
+    <div className="metric-grid">
       {props.metrics.map((metric) => (
         <article key={metric.label}>
           <span>{metric.label}</span>
           <strong>{metric.value}</strong>
         </article>
       ))}
-    </section>
+    </div>
   );
 }
 

@@ -47,7 +47,7 @@ export function UsageTab(props: {
         ]}
       />
 
-      <section className="table-section">
+      <div className="table-section">
         <div className="table-header">
           <h2>用户用量汇总</h2>
           <span>最多显示 {formatInteger(props.data.maxRows)} 行</span>
@@ -100,7 +100,7 @@ export function UsageTab(props: {
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
     </section>
   );
 }

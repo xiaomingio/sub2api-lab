@@ -99,7 +99,7 @@
 
 @layer components {
   .page-shell {
-    @apply mx-auto grid h-screen w-[min(1440px,calc(100vw-48px))] min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-[18px] overflow-hidden py-9 pt-[22px];
+    @apply mx-auto grid h-screen w-[min(1440px,calc(100vw-32px))] min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-[18px] overflow-hidden py-5 pt-4;
   }
 
   .topbar {
@@ -126,16 +126,30 @@
     @apply border-[color:var(--panel-border)] border-b-[color:var(--panel)] bg-[color:var(--panel)] text-[color:var(--text)];
   }
 
+  .tab-nav-logout {
+    @apply ml-auto flex flex-none items-center py-1;
+  }
+
   .tab-panel {
     @apply hidden;
   }
 
   .tab-panel.is-active {
-    @apply grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-[18px] overflow-hidden;
+    @apply grid min-h-0 min-w-0 gap-[18px] overflow-hidden;
+  }
+
+  .records-panel {
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 
   .page-content {
     @apply min-h-0 min-w-0 overflow-hidden;
+  }
+
+  .page-content,
+  .page-content > *,
+  .tab-panel > * {
+    @apply box-border max-w-full min-w-0 w-full;
   }
 
   .page-content > .status-message {
@@ -147,7 +161,7 @@
   }
 
   .section-intro {
-    @apply min-w-0 rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-4 py-3;
+    @apply box-border w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-4 py-3;
   }
 
   .section-intro p {
@@ -640,7 +654,7 @@
 
 @media (max-width: 760px) {
   .page-shell {
-    @apply w-[min(calc(100vw-28px),720px)] pt-[18px];
+    @apply w-[min(calc(100vw-20px),720px)] pt-3;
   }
 
   .topbar,
@@ -677,7 +691,7 @@
   }
 
   .range-panel {
-    @apply w-[min(calc(100vw-28px),720px)];
+    @apply w-[min(calc(100vw-20px),720px)];
   }
 
   .range-picker summary {
@@ -706,6 +720,10 @@
 
   .records-toolbar {
     @apply grid items-start;
+  }
+
+  .tab-nav-logout {
+    @apply ml-0 w-full;
   }
 
   .records-limit-field {
