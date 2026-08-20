@@ -48,15 +48,7 @@ export function BalanceSettingsTab(props: { data: DashboardData; onRefresh: () =
 
   return (
     <section className="tab-panel is-active balance-panel" aria-label="余额设置">
-      <div className="balance-intro">
-        <div className="section-intro">
-          <p>
-            下月开用前使用：只把勾选账号的系统余额覆盖为新的目标额度，未选择账号不会变化；提交前会再次确认，不影响成本分摊页的计算结果。
-          </p>
-        </div>
-
-        {!props.data.restore.enabled ? <div className="status-message is-warning">{props.data.restore.disabledReason}</div> : null}
-      </div>
+      {!props.data.restore.enabled ? <div className="status-message is-warning">{props.data.restore.disabledReason}</div> : null}
 
       <div className="tool-panel">
         <div className="form-grid">

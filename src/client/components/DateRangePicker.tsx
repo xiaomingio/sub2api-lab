@@ -3,6 +3,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { presetLabels } from "../../shared/ranges.js";
 import type { RangePreset } from "../../shared/ranges.js";
 import { formatDateTime } from "../format.js";
@@ -43,7 +44,9 @@ type DateRangePickerProps = {
 export function DateRangePicker({ range, timezone, onChange }: DateRangePickerProps) {
   const [customStart, setCustomStart] = useState(range.startDate);
   const [customEnd, setCustomEnd] = useState(range.endDate);
+  const [panelStyle, setPanelStyle] = useState<CSSProperties | undefined>();
   const pickerRef = useRef<HTMLDetailsElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCustomStart(range.startDate);
@@ -60,6 +63,32 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
     return () => document.removeEventListener("click", close);
   }, []);
 
+  useEffect(() => {
+    const reposition = () => {
+      if (pickerRef.current?.open) positionPanel();
+    };
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, []);
+
+  function positionPanel() {
+    const picker = pickerRef.current;
+    const panel = panelRef.current;
+    if (!picker || !panel) return;
+    const trigger = picker.getBoundingClientRect();
+    const viewportPadding = 16;
+    const panelWidth = Math.min(720, window.innerWidth - viewportPadding * 2);
+    const left = Math.min(
+      Math.max(viewportPadding, trigger.left),
+      window.innerWidth - panelWidth - viewportPadding
+    );
+    setPanelStyle({ left, top: trigger.bottom + 10, width: panelWidth });
+  }
+
   function closePicker() {
     pickerRef.current?.removeAttribute("open");
   }
@@ -68,14 +97,17 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
 
   return (
     <div className="range-section">
-      <span className="section-label">时间范围：{rangeText}</span>
-      <details className="range-picker" ref={pickerRef}>
+      <details
+        className="range-picker"
+        ref={pickerRef}
+        onToggle={() => requestAnimationFrame(positionPanel)}
+      >
         <summary>
           <span className="calendar-icon" aria-hidden="true" />
-          <span>{range.label}</span>
+          <span title={rangeText}>{range.label}</span>
           <span className="chevron" aria-hidden="true" />
         </summary>
-        <div className="range-panel">
+        <div className="range-panel" ref={panelRef} style={panelStyle}>
           <div className="preset-grid">
             {presetOrder.map((preset) => (
               <button

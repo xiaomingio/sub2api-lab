@@ -69,24 +69,30 @@ export function App() {
 
   return (
     <main className="page-shell">
-      <nav className="tab-nav" aria-label="功能标签页">
-        {Object.entries(tabLabels).map(([key, label]) => (
-          <button
-            className={`tab-link${tab === key ? " is-active" : ""}`}
-            type="button"
-            key={key}
-            aria-current={tab === key ? "page" : undefined}
-            onClick={() => setTab(key as DashboardTab)}
-          >
-            {label}
-          </button>
-        ))}
+      <header className="app-header">
+        <div className="app-brand">
+          <span className="app-eyebrow">SUB2API LAB / ADMIN</span>
+          <h1>{tabLabels[tab]}</h1>
+        </div>
+        <nav className="tab-nav" aria-label="功能标签页">
+          {Object.entries(tabLabels).map(([key, label]) => (
+            <button
+              className={`tab-link${tab === key ? " is-active" : ""}`}
+              type="button"
+              key={key}
+              aria-current={tab === key ? "page" : undefined}
+              onClick={() => setTab(key as DashboardTab)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
         <form className="tab-nav-logout" method="post" action="logout">
           <button className="logout-button" type="submit">
             退出
           </button>
         </form>
-      </nav>
+      </header>
 
       <div className="page-content">
         {loading && !data ? <div className="status-message">正在加载数据。</div> : null}

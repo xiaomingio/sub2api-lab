@@ -26,12 +26,6 @@ export function UsageTab(props: {
 
   return (
     <section className="tab-panel is-active usage-panel" aria-label="用量统计">
-      <div className="section-intro">
-        <p>
-          对账或排查用量时使用：按选择的时间范围汇总每个用户在 Sub2API 里的请求数、Token 和已记录费用；这里只读取调用记录，不做成本分摊，也不写入余额。
-        </p>
-      </div>
-
       <DateRangePicker
         range={usage.range}
         timezone={props.data.timezone}

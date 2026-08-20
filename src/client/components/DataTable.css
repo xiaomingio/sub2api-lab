@@ -53,58 +53,63 @@
 
 .data-table-filter-button:hover,
 .data-table-filter-button.is-active {
-  @apply bg-white text-[#24334b] shadow-[0_0_0_1px_var(--panel-border)];
+  @apply bg-[color:var(--accent-soft)] text-[color:var(--accent-strong)] shadow-[0_0_0_1px_var(--accent)];
 }
 
 .data-filter-popover {
-  @apply fixed z-[100] w-[min(320px,calc(100vw-16px))] max-h-[min(620px,calc(100vh-16px))] overflow-auto rounded-lg border border-[color:var(--panel-border)] bg-white p-3 text-sm text-[color:var(--text)];
+  @apply fixed z-[100] w-[min(390px,calc(100vw-32px))] max-h-[min(620px,calc(100vh-24px))] overflow-auto rounded-xl border border-[color:var(--panel-border)] bg-white p-4 text-sm text-[color:var(--text)];
   box-shadow: var(--shadow);
 }
 
 .data-filter-popover > strong {
-  @apply mb-3 block text-base;
+  @apply mb-3 block text-[15px] font-extrabold;
 }
 
 .data-filter-text,
 .data-filter-range {
-  @apply grid gap-2;
+  @apply grid gap-3;
 }
 
 .data-filter-text input,
 .data-filter-range input {
-  @apply h-9 min-w-0 rounded-md border border-[color:var(--panel-border)] px-2;
+  @apply h-10 min-w-0 rounded-lg border border-[color:var(--panel-border)] bg-white px-3 text-[13px];
+}
+
+.data-filter-text input:focus,
+.data-filter-range input:focus {
+  @apply border-[color:var(--accent)] outline outline-2 outline-offset-0 outline-[rgba(15,157,143,0.14)];
 }
 
 .data-filter-range label {
-  @apply grid gap-1 text-xs font-bold text-[color:var(--muted)];
+  @apply grid gap-1.5 text-xs font-bold text-[color:var(--muted)];
 }
 
 .data-filter-popover button {
-  @apply h-8 cursor-pointer rounded-md border border-[color:var(--panel-border)] bg-white px-2.5 text-xs font-bold text-[#4b566a];
+  @apply h-8 cursor-pointer rounded-lg border border-[color:var(--panel-border)] bg-white px-3 text-xs font-bold text-[#4b566a];
 }
 
 .data-filter-popover button:hover {
-  @apply border-[#b8c3d1] text-[color:var(--text)];
+  @apply border-[#72b8ae] bg-[color:var(--accent-soft)] text-[color:var(--accent-strong)];
 }
 
 .data-filter-actions {
-  @apply mb-2 flex flex-wrap items-center gap-1.5;
+  @apply mb-2.5 flex flex-wrap items-center gap-2;
 }
 
 .data-filter-actions strong {
-  @apply mr-auto rounded-md bg-[#f1f5f9] px-2 py-1 text-xs text-[color:var(--muted)];
+  @apply mr-auto rounded-md bg-[#f1f5f4] px-2 py-1 text-xs text-[color:var(--muted)];
 }
 
 .data-filter-enum {
-  @apply grid gap-2;
+  @apply grid gap-1.5;
 }
 
 .data-filter-enum > label {
-  @apply flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-[color:var(--line)] bg-[#fbfcfe] px-2.5;
+  @apply flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-2.5;
 }
 
 .data-filter-enum > label:hover {
-  @apply border-[#b8c3d1] bg-white;
+  @apply border-transparent bg-[#f3f7f6];
 }
 
 .data-filter-enum > label span {
@@ -112,5 +117,15 @@
 }
 
 .data-filter-enum > label small {
-  @apply rounded bg-white px-1.5 py-0.5 font-bold text-[color:var(--muted)];
+  @apply rounded bg-[#f1f5f4] px-1.5 py-0.5 font-bold text-[color:var(--muted)];
+}
+
+.data-filter-enum > label input {
+  @apply h-4 w-4 flex-none accent-[color:var(--accent)];
+}
+
+@media (max-width: 640px) {
+  .data-filter-popover {
+    @apply left-3 right-3 w-auto;
+  }
 }

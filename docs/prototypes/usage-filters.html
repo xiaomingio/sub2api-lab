@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+  文件说明: 使用记录预筛选交互原型，验证时间范围与多选筛选卡片的布局和交互。
+  参考资料: 用户提供的筛选卡片截图。
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>使用记录筛选原型</title>
+    <link rel="stylesheet" href="./usage-filters.css" />
+  </head>
+  <body>
+    <main class="prototype-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">SUB2API LAB / ADMIN</p>
+          <h1>使用记录</h1>
+        </div>
+        <nav class="tabs" aria-label="管理台功能">
+          <a href="#">用量统计</a>
+          <a class="is-active" href="#">使用记录</a>
+          <a href="#">成本分摊</a>
+          <a href="#">余额设置</a>
+        </nav>
+        <button class="logout" type="button">退出</button>
+      </header>
+
+      <section class="filter-workspace" aria-label="记录筛选">
+        <div class="workspace-heading">
+          <div>
+            <p class="eyebrow">QUERY BUILDER</p>
+            <h2>筛选记录</h2>
+          </div>
+          <button class="reset-button" type="button">重置全部</button>
+        </div>
+
+        <div class="filter-grid">
+          <details class="filter-card time-card">
+            <summary>
+              <span class="field-kicker">时间范围</span>
+              <strong>最近 14 天</strong>
+              <span class="summary-icon">⌄</span>
+            </summary>
+            <div class="filter-popover time-popover">
+              <div class="popover-head"><strong>时间范围</strong><button class="text-action" type="button">完成</button></div>
+              <div class="preset-list">
+                <button class="preset is-selected" type="button">最近 14 天<span>当前</span></button>
+                <button class="preset" type="button">今天</button>
+                <button class="preset" type="button">最近 7 天</button>
+                <button class="preset" type="button">最近 30 天</button>
+                <button class="preset" type="button">自定义日期</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="filter-card is-open" open>
+            <summary>
+              <span class="field-kicker">用户</span>
+              <strong>未筛选</strong>
+              <span class="summary-icon">⌃</span>
+            </summary>
+            <div class="filter-popover multi-popover">
+              <div class="popover-head"><strong>用户</strong><button class="text-action" type="button">完成</button></div>
+              <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" placeholder="搜索用户或用户 ID" /></label>
+              <div class="selection-actions"><span>全部用户 <b>24</b></span><button class="text-action" type="button">全选</button><button class="text-action" type="button">清空</button></div>
+              <div class="option-list">
+                <label class="option-row"><input type="checkbox" /><span><strong>alice@example.com</strong><small>用户 #1024</small></span></label>
+                <label class="option-row"><input type="checkbox" /><span><strong>bob@example.com</strong><small>用户 #1025</small></span></label>
+                <label class="option-row"><input type="checkbox" /><span><strong>carol@example.com</strong><small>用户 #1026</small></span></label>
+                <label class="option-row"><input type="checkbox" /><span><strong>dev-team</strong><small>用户 #1031</small></span></label>
+                <label class="option-row"><input type="checkbox" /><span><strong>ops@example.com</strong><small>用户 #1042</small></span></label>
+              </div>
+              <div class="popover-foot"><span>默认不筛选</span><button class="primary-action" type="button">应用筛选</button></div>
+            </div>
+          </details>
+
+          <details class="filter-card">
+            <summary><span class="field-kicker">上游账号</span><strong>未筛选</strong><span class="summary-icon">⌄</span></summary>
+            <div class="filter-popover multi-popover"><div class="popover-head"><strong>上游账号</strong><button class="text-action" type="button">完成</button></div><label class="search-field"><span aria-hidden="true">⌕</span><input type="search" placeholder="搜索上游账号" /></label><div class="selection-actions"><span>全部账号 <b>8</b></span><button class="text-action" type="button">全选</button><button class="text-action" type="button">清空</button></div><div class="option-list"><label class="option-row"><input type="checkbox" /><span><strong>Claude Team East</strong><small>账号 #21 · Anthropic</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>OpenAI Primary</strong><small>账号 #24 · OpenAI</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>Gemini Shared</strong><small>账号 #28 · Google</small></span></label></div><div class="popover-foot"><span>默认不筛选</span><button class="primary-action" type="button">应用筛选</button></div></div>
+          </details>
+
+          <details class="filter-card">
+            <summary><span class="field-kicker">入站接口</span><strong>未筛选</strong><span class="summary-icon">⌄</span></summary>
+            <div class="filter-popover multi-popover"><div class="popover-head"><strong>入站接口</strong><button class="text-action" type="button">完成</button></div><div class="selection-actions"><span>全部接口 <b>6</b></span><button class="text-action" type="button">全选</button><button class="text-action" type="button">清空</button></div><div class="option-list"><label class="option-row"><input type="checkbox" /><span><strong>/v1/messages</strong><small>Anthropic Messages</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>/v1/chat/completions</strong><small>OpenAI Chat Completions</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>/v1/responses</strong><small>OpenAI Responses</small></span></label></div><div class="popover-foot"><span>默认不筛选</span><button class="primary-action" type="button">应用筛选</button></div></div>
+          </details>
+
+          <details class="filter-card">
+            <summary><span class="field-kicker">分组</span><strong>未筛选</strong><span class="summary-icon">⌄</span></summary>
+            <div class="filter-popover multi-popover"><div class="popover-head"><strong>分组</strong><button class="text-action" type="button">完成</button></div><div class="selection-actions"><span>全部分组 <b>5</b></span><button class="text-action" type="button">全选</button><button class="text-action" type="button">清空</button></div><div class="option-list"><label class="option-row"><input type="checkbox" /><span><strong>生产环境</strong><small>分组 #1</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>内部测试</strong><small>分组 #2</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>研发团队</strong><small>分组 #4</small></span></label></div><div class="popover-foot"><span>默认不筛选</span><button class="primary-action" type="button">应用筛选</button></div></div>
+          </details>
+
+          <details class="filter-card">
+            <summary><span class="field-kicker">计费类型</span><strong>未筛选</strong><span class="summary-icon">⌄</span></summary>
+            <div class="filter-popover multi-popover"><div class="popover-head"><strong>计费类型</strong><button class="text-action" type="button">完成</button></div><div class="selection-actions"><span>全部类型 <b>2</b></span><button class="text-action" type="button">全选</button><button class="text-action" type="button">清空</button></div><div class="option-list"><label class="option-row"><input type="checkbox" /><span><strong>钱包余额</strong><small>balance · 0</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>订阅套餐</strong><small>subscription · 1</small></span></label></div><div class="popover-foot"><span>默认不筛选</span><button class="primary-action" type="button">应用筛选</button></div></div>
+          </details>
+        </div>
+
+        <div class="active-summary"><span class="status-dot"></span><strong>当前未添加筛选条件</strong><span>24,680 条记录</span><button class="summary-link" type="button">查看结果</button></div>
+      </section>
+
+      <section class="records-preview">
+        <div class="records-heading"><div><p class="eyebrow">RESULTS</p><h2>调用记录</h2></div><span class="record-count">显示 1,000 / 24,680 条</span></div>
+        <div class="table-wrap"><table><thead><tr><th>时间</th><th>用户</th><th>模型</th><th>入站接口</th><th>流式响应</th><th>计费类型</th><th>总 Token</th><th>耗时</th></tr></thead><tbody><tr><td>08-20 14:26:04</td><td>alice@example.com</td><td>claude-sonnet-4</td><td>/v1/messages</td><td><span class="badge badge-green">流式响应</span></td><td>钱包余额</td><td>8,420</td><td>12.8s</td></tr><tr><td>08-20 14:25:31</td><td>dev-team</td><td>gpt-5</td><td>/v1/responses</td><td><span class="badge">同步响应</span></td><td>订阅套餐</td><td>3,118</td><td>4.1s</td></tr><tr><td>08-20 14:24:52</td><td>bob@example.com</td><td>gemini-2.5-pro</td><td>/v1/chat/completions</td><td><span class="badge badge-green">流式响应</span></td><td>钱包余额</td><td>5,760</td><td>9.4s</td></tr></tbody></table></div>
+      </section>
+    </main>
+    <script>
+      document.querySelectorAll("details").forEach((detail) => {
+        detail.addEventListener("toggle", () => {
+          if (!detail.open) return;
+          document.querySelectorAll("details[open]").forEach((other) => {
+            if (other !== detail) other.removeAttribute("open");
+          });
+        });
+      });
+      document.addEventListener("click", (event) => {
+        const openDetail = document.querySelector("details[open]");
+        if (openDetail && event.target instanceof Node && !openDetail.contains(event.target)) openDetail.removeAttribute("open");
+      });
+      document.querySelectorAll(".filter-popover .text-action, .filter-popover .primary-action, .filter-popover .preset").forEach((button) => {
+        button.addEventListener("click", () => button.closest("details")?.removeAttribute("open"));
+      });
+      document.querySelectorAll(".reset-button").forEach((button) => {
+        button.addEventListener("click", () => document.querySelectorAll("input[type=checkbox]").forEach((input) => { input.checked = false; }));
+      });
+    </script>
+  </body>
+</html>

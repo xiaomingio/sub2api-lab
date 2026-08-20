@@ -151,10 +151,6 @@
     grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .balance-intro {
-    @apply grid min-w-0 gap-[18px];
-  }
-
   .page-content {
     @apply min-h-0 min-w-0 overflow-hidden;
   }
@@ -171,15 +167,6 @@
 
   .page-content > .tab-panel.is-active {
     @apply h-full;
-  }
-
-  .section-intro {
-    @apply box-border w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-4 py-3;
-  }
-
-  .section-intro p {
-    @apply max-w-[1120px] text-sm leading-6 text-[color:var(--muted)];
-    overflow-wrap: anywhere;
   }
 
   .tool-panel,
@@ -487,7 +474,7 @@
   }
 
   .range-picker summary span:not(.calendar-icon, .chevron) {
-    @apply min-w-0 flex-none whitespace-nowrap;
+    @apply min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap;
   }
 
   .range-picker summary::-webkit-details-marker {
@@ -519,7 +506,7 @@
   }
 
   .range-panel {
-    @apply absolute left-0 z-10 mt-2.5 w-[min(720px,calc(100vw-48px))] overflow-hidden rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--panel)];
+    @apply fixed z-10 box-border max-h-[calc(100vh-32px)] max-w-[calc(100vw-32px)] overflow-auto rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--panel)];
     box-shadow: var(--shadow);
   }
 
@@ -528,7 +515,8 @@
   }
 
   .range-option {
-    @apply h-[38px] cursor-pointer whitespace-nowrap rounded-[10px] border-0 bg-transparent px-3 text-left text-[15px] font-bold text-[#4b566a];
+    @apply min-w-0 min-h-[38px] cursor-pointer overflow-hidden rounded-[10px] border-0 bg-transparent px-3 text-left text-[15px] font-bold leading-6 text-[#4b566a];
+    overflow-wrap: anywhere;
   }
 
   .range-option:hover,
@@ -537,7 +525,15 @@
   }
 
   .custom-range {
-    @apply grid grid-cols-[1fr_auto_1fr_auto] items-end gap-3 border-t border-[color:var(--line)] p-4;
+    @apply grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-end gap-3 border-t border-[color:var(--line)] p-4;
+  }
+
+  .custom-range label {
+    @apply min-w-0;
+  }
+
+  .custom-range input {
+    @apply min-w-0 max-w-full;
   }
 
   .range-arrow {
@@ -741,5 +737,191 @@
 
   .records-limit-field {
     @apply w-full;
+  }
+}
+
+/* 原型视觉：页面自然增长，只有数据表格承担固定高度和虚拟滚动。 */
+.page-shell {
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+  align-content: start;
+  align-items: start;
+  grid-template-rows: auto auto;
+  padding-bottom: 32px;
+}
+
+.app-header {
+  @apply flex min-h-[62px] items-center justify-between gap-6 border-b border-[color:var(--line)];
+}
+
+.app-brand {
+  @apply grid flex-none gap-1;
+}
+
+.app-brand h1 {
+  @apply text-2xl font-extrabold tracking-[-0.02em];
+}
+
+.app-eyebrow,
+.field-kicker {
+  @apply text-[11px] font-extrabold uppercase tracking-[0.12em] text-[color:var(--accent)];
+}
+
+.tab-nav {
+  @apply static flex-none flex-nowrap gap-1 rounded-full border border-[color:var(--panel-border)] bg-white/80 p-1;
+}
+
+.tab-link {
+  @apply mb-0 h-9 rounded-full border-0 px-4 text-[13px] font-extrabold text-[color:var(--muted)];
+}
+
+.tab-link:hover {
+  @apply bg-[#eef7f6] text-[color:var(--accent-strong)];
+}
+
+.tab-link.is-active {
+  @apply border-0 bg-[color:var(--text)] text-white;
+}
+
+.tab-nav-logout {
+  @apply ml-0 flex-none py-0;
+}
+
+.logout-button {
+  @apply h-auto min-w-0 border-0 bg-transparent px-0 text-[13px] text-[color:var(--muted)];
+}
+
+.logout-button:hover {
+  @apply border-0 bg-transparent text-[color:var(--text)];
+}
+
+.page-content,
+.page-content > .tab-panel.is-active,
+.tab-panel.is-active {
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+  align-content: start;
+  align-items: start;
+}
+
+.records-panel,
+.usage-panel,
+.allocation-panel,
+.balance-panel {
+  grid-template-rows: none;
+}
+
+.range-section {
+  @apply flex items-end justify-start gap-5 rounded-xl border border-[color:var(--panel-border)] bg-white px-4 py-3.5;
+  box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
+}
+
+.range-picker summary {
+  @apply h-[58px] w-[260px] rounded-[10px] border border-[color:var(--panel-border)] bg-white px-3.5 text-sm shadow-none;
+}
+
+.range-picker summary:hover,
+.range-picker[open] summary {
+  @apply border-[#72b8ae] bg-[#f8fffd] shadow-[0_0_0_3px_rgba(21,125,114,0.09)];
+}
+
+.range-panel {
+  @apply mt-2.5 rounded-xl;
+}
+
+.records-toolbar {
+  @apply items-end rounded-xl border border-[color:var(--panel-border)] bg-white px-4 py-3;
+  box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
+}
+
+.records-limit-field {
+  @apply w-[180px] text-xs;
+}
+
+.records-limit-field input {
+  @apply h-9 rounded-lg bg-white;
+}
+
+.records-meta {
+  @apply pb-2 text-xs;
+}
+
+.records-table-section {
+  @apply overflow-visible rounded-xl border border-[color:var(--panel-border)] bg-white;
+  box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
+}
+
+.records-table-section .data-table-shell {
+  flex: none;
+  max-height: min(720px, calc(100vh - 300px));
+}
+
+.data-table {
+  @apply text-[13px];
+}
+
+.data-table th {
+  @apply border-b border-r border-[color:var(--line)] bg-[#f8fbfa] p-2;
+}
+
+.data-table td {
+  @apply border-r border-[color:var(--line)] px-3 py-3;
+}
+
+.data-table tbody tr:hover {
+  @apply bg-[#f5faf9];
+}
+
+.data-table-sort-area {
+  @apply text-[11px] uppercase tracking-[0.04em] text-[#60726f];
+}
+
+.data-table-filter-button:hover,
+.data-table-filter-button.is-active {
+  @apply bg-[color:var(--accent-soft)] text-[color:var(--accent-strong)];
+}
+
+@media (max-width: 760px) {
+  .app-header {
+    @apply grid items-start gap-3 pb-3;
+  }
+
+  .app-brand {
+    @apply grid-cols-[1fr_auto] items-end;
+  }
+
+  .app-brand .app-eyebrow {
+    @apply col-span-2;
+  }
+
+  .tab-nav {
+    @apply order-3 w-full justify-stretch overflow-x-auto;
+  }
+
+  .tab-link {
+    @apply flex-1 whitespace-nowrap px-3;
+  }
+
+  .tab-nav-logout {
+    @apply absolute right-5 top-4;
+  }
+
+  .range-section {
+    @apply grid items-start gap-3;
+  }
+
+  .range-picker,
+  .range-picker summary {
+    @apply w-full;
+  }
+
+  .range-panel {
+    @apply max-w-[calc(100vw-32px)];
+  }
+
+  .records-table-section .data-table-shell {
+    max-height: min(620px, calc(100vh - 260px));
   }
 }

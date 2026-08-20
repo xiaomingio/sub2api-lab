@@ -265,12 +265,6 @@ export function AllocationTab(props: {
 
   return (
     <section className="tab-panel is-active allocation-panel" aria-label="成本分摊">
-      <div className="section-intro">
-        <p>
-          月结时使用：按所选统计口径计算每个用户的消耗基准，再按占比分摊真实采购成本；这里只计算，不写入余额。
-        </p>
-      </div>
-
       <div className="tool-panel">
         <div className="form-grid allocation-form-grid">
           <div className="form-field">
