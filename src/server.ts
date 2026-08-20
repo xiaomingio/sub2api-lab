@@ -18,6 +18,7 @@ import { resolveDateRange, resolveDateTimeRange } from "./ranges.js";
 import { createSub2APIAdminClient, restoreSelectedUserBalances } from "./sub2api.js";
 import { getUserUsageSummary } from "./usage.js";
 import { getUsageCostBasisReport, listUpstreamAccounts, normalizeAllocationBasis, parseAccountIds } from "./usage_costs.js";
+import { getUsageRecords } from "./usage_records.js";
 
 const config = loadConfig();
 const db = await createDb(config).catch((error: unknown) => {
@@ -61,6 +62,7 @@ type UsageQuery = {
   allocation_account_ids?: string | string[];
   allocation_start_at?: string;
   allocation_end_at?: string;
+  limit?: string;
 };
 
 type RestoreRequestBody = {
@@ -177,6 +179,18 @@ async function usageApi(request: FastifyRequest) {
   });
 }
 
+async function usageRecordsApi(request: FastifyRequest) {
+  const query = request.query as UsageQuery;
+  const range = resolveDateRange({
+    preset: query.preset,
+    startDate: query.start_date,
+    endDate: query.end_date,
+    timezone: config.timezone,
+    defaultPreset: config.defaultRange
+  });
+  return getUsageRecords({ db, range, limit: query.limit, defaultLimit: config.maxRows });
+}
+
 async function restoreBalanceApi(request: FastifyRequest, reply: FastifyReply) {
   if (!restoreClient) {
     return reply.code(503).send({
@@ -224,6 +238,7 @@ async function restoreBalanceApi(request: FastifyRequest, reply: FastifyReply) {
 app.get("/", { preHandler: requireAuth }, async (_request, reply) => sendHtml(reply, "index"));
 app.get("/api/dashboard", { preHandler: requireAuth }, dashboardApi);
 app.get("/api/usage", { preHandler: requireAuth }, usageApi);
+app.get("/api/usage-records", { preHandler: requireAuth }, usageRecordsApi);
 app.post("/api/balances/restore", { preHandler: requireAuth }, restoreBalanceApi);
 app.get("/login", async (_request, reply) => sendHtml(reply, "login"));
 app.post("/login", auth.handleLogin);
@@ -238,6 +253,7 @@ if (config.basePath) {
   app.get(`${config.basePath}/`, { preHandler: requireAuth }, async (_request, reply) => sendHtml(reply, "index"));
   app.get(`${config.basePath}/api/dashboard`, { preHandler: requireAuth }, dashboardApi);
   app.get(`${config.basePath}/api/usage`, { preHandler: requireAuth }, usageApi);
+  app.get(`${config.basePath}/api/usage-records`, { preHandler: requireAuth }, usageRecordsApi);
   app.post(`${config.basePath}/api/balances/restore`, { preHandler: requireAuth }, restoreBalanceApi);
   app.get(`${config.basePath}/login`, async (_request, reply) => sendHtml(reply, "login"));
   app.post(`${config.basePath}/login`, auth.handleLogin);

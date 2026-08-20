@@ -35,6 +35,12 @@
   #root {
     max-width: 100%;
     overflow-x: hidden;
+    height: 100%;
+  }
+
+  html,
+  body {
+    min-height: 100%;
   }
 
   button,
@@ -93,7 +99,7 @@
 
 @layer components {
   .page-shell {
-    @apply mx-auto grid w-[min(1440px,calc(100vw-48px))] min-w-0 gap-[18px] py-9 pt-[22px];
+    @apply mx-auto grid h-screen w-[min(1440px,calc(100vw-48px))] min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-[18px] overflow-hidden py-9 pt-[22px];
   }
 
   .topbar {
@@ -105,7 +111,7 @@
   }
 
   .tab-nav {
-    @apply flex flex-wrap gap-2 border-b border-[color:var(--line)];
+    @apply sticky top-0 z-10 flex flex-none flex-wrap gap-2 border-b border-[color:var(--line)] bg-[color:var(--bg)];
   }
 
   .tab-link {
@@ -125,7 +131,19 @@
   }
 
   .tab-panel.is-active {
-    @apply grid min-w-0 gap-[18px];
+    @apply grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-[18px] overflow-hidden;
+  }
+
+  .page-content {
+    @apply min-h-0 min-w-0 overflow-hidden;
+  }
+
+  .page-content > .status-message {
+    @apply max-h-full overflow-auto;
+  }
+
+  .page-content > .tab-panel.is-active {
+    @apply h-full;
   }
 
   .section-intro {
@@ -354,7 +372,7 @@
   }
 
   .table-section {
-    @apply overflow-hidden;
+    @apply flex min-h-0 flex-col overflow-hidden;
   }
 
   .table-header {
@@ -382,7 +400,27 @@
   }
 
   .table-wrap {
-    @apply overflow-auto;
+    @apply min-h-0 flex-1 overflow-auto;
+  }
+
+  .records-toolbar {
+    @apply flex min-w-0 items-end gap-4 rounded-lg border border-[color:var(--panel-border)] bg-[color:var(--panel)] px-5 py-3;
+  }
+
+  .records-limit-field {
+    @apply grid w-[180px] gap-1.5 text-[13px] font-extrabold text-[#38455c];
+  }
+
+  .records-limit-field input {
+    @apply h-9 w-full rounded-lg border border-[color:var(--panel-border)] px-3;
+  }
+
+  .records-meta {
+    @apply pb-2 text-[13px] text-[color:var(--muted)];
+  }
+
+  .records-table-section {
+    @apply min-h-0;
   }
 
   th.sortable {
@@ -664,5 +702,13 @@
 
   .dialog-actions {
     @apply grid grid-cols-2;
+  }
+
+  .records-toolbar {
+    @apply grid items-start;
+  }
+
+  .records-limit-field {
+    @apply w-full;
   }
 }

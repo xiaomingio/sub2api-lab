@@ -74,7 +74,7 @@ type RestoreResult = {
   failures: RestoreFailure[];
 };
 
-type DashboardTab = "allocation" | "balance" | "usage";
+type DashboardTab = "allocation" | "balance" | "usage" | "records";
 
 type UsageQuery = {
   preset?: string;
@@ -88,4 +88,12 @@ type UsageQuery = {
   allocationEndAt?: string;
 };
 
-export type { DashboardData, DashboardTab, RestoreFailure, RestoreResult, SerializedUsageReport, UsageQuery };
+type UsageRecordsData = {
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+  total: number;
+  limit: number;
+  range: SerializedDateRange;
+};
+
+export type { DashboardData, DashboardTab, RestoreFailure, RestoreResult, SerializedUsageReport, UsageQuery, UsageRecordsData };

@@ -15,7 +15,8 @@ import type { BalanceAccount, BalanceAllocationRow, UsageCostAllocationRow } fro
 import type { RangePreset } from "../ranges.js";
 import type { UsageSortKey } from "../usage.js";
 import type { AllocationBasis, UpstreamAccount } from "../usage_costs.js";
-import { fetchDashboard, restoreBalances } from "./api.js";
+import { fetchDashboard, fetchUsageRecords, restoreBalances } from "./api.js";
+import { DataTable } from "./components/DataTable.js";
 import {
   type ActualCostCurrency,
   formatActualCost,
@@ -24,10 +25,11 @@ import {
   formatSystemBalance,
   formatUsageCost
 } from "./format.js";
-import type { DashboardData, DashboardTab, RestoreResult, UsageQuery } from "./types.js";
+import type { DashboardData, DashboardTab, RestoreResult, UsageQuery, UsageRecordsData } from "./types.js";
 
 const tabLabels: Record<DashboardTab, string> = {
   usage: "用量统计",
+  records: "使用记录",
   allocation: "成本分摊",
   balance: "余额设置"
 };
@@ -101,7 +103,7 @@ type AllocationColumn = {
 
 function initialTab(): DashboardTab {
   const tab = new URLSearchParams(window.location.search).get("tab");
-  return tab === "allocation" || tab === "balance" ? tab : "usage";
+  return tab === "allocation" || tab === "balance" || tab === "records" ? tab : "usage";
 }
 
 function initialUsageQuery(): UsageQuery {
@@ -173,6 +175,40 @@ function updateUrl(tab: DashboardTab, usageQuery: UsageQuery) {
   }
   window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
 }
+
+const recordLabels: Record<string, string> = {
+  id: "ID",
+  user_id: "用户 ID",
+  api_key_id: "API Key ID",
+  account_id: "上游账号 ID",
+  request_id: "请求 ID",
+  provider: "提供商",
+  platform: "平台",
+  model: "模型",
+  endpoint: "接口",
+  path: "路径",
+  method: "请求方法",
+  status: "状态",
+  status_code: "状态码",
+  error: "错误",
+  error_message: "错误信息",
+  created_at: "创建时间",
+  updated_at: "更新时间",
+  input_tokens: "输入 Token",
+  output_tokens: "输出 Token",
+  cache_creation_tokens: "缓存创建 Token",
+  cache_read_tokens: "缓存读取 Token",
+  image_output_tokens: "图片输出 Token",
+  total_tokens: "总 Token",
+  total_cost: "标准费用",
+  actual_cost: "实际费用",
+  currency: "货币",
+  stream: "流式响应",
+  is_stream: "流式响应",
+  metadata: "元数据",
+  request_body: "请求内容",
+  response_body: "响应内容"
+};
 
 function selectedAccounts(accounts: BalanceAccount[], selectedUserIds: Set<number>): BalanceAccount[] {
   return accounts.filter((account) => selectedUserIds.has(account.userId));
@@ -1102,12 +1138,99 @@ function UsageTab(props: {
   );
 }
 
+function RecordsTab(props: {
+  data: DashboardData;
+  usageQuery: UsageQuery;
+  records: UsageRecordsData | null;
+  limit: number;
+  loading: boolean;
+  onLimitChange: (limit: number) => void;
+  onUsageQueryChange: (query: UsageQuery) => void;
+}) {
+  const range = props.records?.range || props.data.usage.range;
+  const [customStart, setCustomStart] = useState(range.startDate);
+  const [customEnd, setCustomEnd] = useState(range.endDate);
+  const rangePickerRef = useRef<HTMLDetailsElement>(null);
+  const rangeText = `${formatDateTime(range.start, props.data.timezone)} 至 ${formatDateTime(range.end, props.data.timezone)}`;
+
+  function closeRangePicker() {
+    rangePickerRef.current?.removeAttribute("open");
+  }
+
+  return (
+    <section className="tab-panel is-active records-panel" aria-label="使用记录">
+      <section className="range-section" aria-label="时间范围">
+        <span className="section-label">时间范围：{rangeText}</span>
+        <details className="range-picker" ref={rangePickerRef}>
+          <summary><span className="calendar-icon" aria-hidden="true" /><span>{range.label}</span><span className="chevron" aria-hidden="true" /></summary>
+          <div className="range-panel">
+            <div className="preset-grid">
+              {presetOrder.map((preset) => (
+                <button className={`range-option${range.preset === preset ? " is-active" : ""}`} type="button" key={preset} onClick={() => { props.onUsageQueryChange({ ...props.usageQuery, preset }); closeRangePicker(); }}>
+                  {presetLabels[preset]}
+                </button>
+              ))}
+            </div>
+            <form className="custom-range" onSubmit={(event) => { event.preventDefault(); props.onUsageQueryChange({ ...props.usageQuery, preset: "custom", startDate: customStart, endDate: customEnd }); closeRangePicker(); }}>
+              <label><span>开始日期</span><input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></label>
+              <span className="range-arrow" aria-hidden="true">-&gt;</span>
+              <label><span>结束日期</span><input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} /></label>
+              <button className="apply-button" type="submit">应用</button>
+            </form>
+          </div>
+        </details>
+      </section>
+
+      <section className="records-toolbar" aria-label="记录加载设置">
+        <label className="records-limit-field">
+          <span>每页记录数</span>
+          <input type="number" min="1" max="10000" step="1" value={props.limit} onChange={(event) => props.onLimitChange(Math.min(10000, Math.max(1, Number(event.target.value) || 1)))} />
+        </label>
+        <span className="records-meta">共 {formatInteger(props.records?.total || 0)} 条，当前显示 {formatInteger(props.records?.rows.length || 0)} 条</span>
+        {props.loading ? <span className="records-meta" role="status">正在更新记录...</span> : null}
+      </section>
+
+      <section className="table-section records-table-section">
+        <DataTable
+          rows={props.records?.rows || []}
+          columns={props.records?.columns}
+          labels={recordLabels}
+          defaultSort="created_at"
+          emptyText={props.loading ? "正在加载使用记录" : "当前时间范围内没有使用记录"}
+          renderCell={(value, key) => <span title={displayRecordValue(value)}>{formatRecordValue(value, key, props.data.timezone)}</span>}
+        />
+      </section>
+    </section>
+  );
+}
+
+function displayRecordValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+function formatRecordValue(value: unknown, key: string, timezone: string): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (isRecordDateKey(key)) {
+    const parsed = new Date(String(value));
+    if (!Number.isNaN(parsed.getTime())) return formatDateTime(parsed, timezone);
+  }
+  return displayRecordValue(value);
+}
+
+function isRecordDateKey(key: string): boolean {
+  return /(^|_)(at|time|date)$|created|updated/i.test(key);
+}
+
 export function App() {
   const [tab, setTab] = useState<DashboardTab>(initialTab);
   const [usageQuery, setUsageQuery] = useState<UsageQuery>(initialUsageQuery);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [records, setRecords] = useState<UsageRecordsData | null>(null);
+  const [recordsLimit, setRecordsLimit] = useState(1000);
+  const [recordsLoading, setRecordsLoading] = useState(false);
   const [allocationSelectedUserIds, setAllocationSelectedUserIds] = useState<Set<number>>(new Set());
   const allocationInitialized = useRef(false);
   const allocationSelectionKeyRef = useRef("");
@@ -1139,6 +1262,15 @@ export function App() {
     void loadDashboard();
   }, [usageQuery]);
 
+  useEffect(() => {
+    if (tab !== "records") return;
+    setRecordsLoading(true);
+    void fetchUsageRecords(usageQuery, recordsLimit)
+      .then(setRecords)
+      .catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : "加载使用记录失败。"))
+      .finally(() => setRecordsLoading(false));
+  }, [recordsLimit, tab, usageQuery]);
+
   return (
     <main className="page-shell">
       <header className="topbar">
@@ -1168,13 +1300,24 @@ export function App() {
         ))}
       </nav>
 
-      {loading && !data ? <div className="status-message">正在加载数据。</div> : null}
-      {error ? <div className="status-message is-error">{error}</div> : null}
-
-      {data ? (
-        <>
+      <div className="page-content">
+        {loading && !data ? <div className="status-message">正在加载数据。</div> : null}
+        {error ? <div className="status-message is-error">{error}</div> : null}
+        {data ? (
+          <>
           {tab === "usage" ? (
             <UsageTab data={data} usageQuery={usageQuery} onUsageQueryChange={(query) => setUsageQuery(query)} />
+          ) : null}
+          {tab === "records" ? (
+            <RecordsTab
+              data={data}
+              usageQuery={usageQuery}
+              records={records}
+              limit={recordsLimit}
+              loading={recordsLoading}
+              onLimitChange={setRecordsLimit}
+              onUsageQueryChange={setUsageQuery}
+            />
           ) : null}
           {tab === "allocation" ? (
             <AllocationTab
@@ -1186,8 +1329,9 @@ export function App() {
             />
           ) : null}
           {tab === "balance" ? <BalanceSettingsTab data={data} onRefresh={() => void loadDashboard()} /> : null}
-        </>
-      ) : null}
+          </>
+        ) : null}
+      </div>
     </main>
   );
 }

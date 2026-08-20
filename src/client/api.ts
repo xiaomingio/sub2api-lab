@@ -2,7 +2,7 @@
  * 文件说明: 封装 React 管理台调用 Fastify JSON API 的请求与错误处理。
  */
 
-import type { DashboardData, RestoreResult, UsageQuery } from "./types.js";
+import type { DashboardData, RestoreResult, UsageQuery, UsageRecordsData } from "./types.js";
 
 function apiPath(path: string): string {
   return path.replace(/^\/+/, "");
@@ -40,6 +40,15 @@ function dashboardSearch(query: UsageQuery): string {
   return params.toString();
 }
 
+function usageRecordsSearch(query: UsageQuery, limit: number): string {
+  const params = new URLSearchParams();
+  if (query.preset) params.set("preset", query.preset);
+  if (query.startDate) params.set("start_date", query.startDate);
+  if (query.endDate) params.set("end_date", query.endDate);
+  params.set("limit", String(limit));
+  return params.toString();
+}
+
 async function parseJsonResponse<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => ({}));
   if (response.status === 401) {
@@ -59,6 +68,12 @@ export async function fetchDashboard(query: UsageQuery): Promise<DashboardData> 
     credentials: "same-origin"
   });
   return parseJsonResponse<DashboardData>(response);
+}
+
+export async function fetchUsageRecords(query: UsageQuery, limit: number): Promise<UsageRecordsData> {
+  const search = usageRecordsSearch(query, limit);
+  const response = await fetch(`${apiPath("api/usage-records")}?${search}`, { credentials: "same-origin" });
+  return parseJsonResponse<UsageRecordsData>(response);
 }
 
 export async function restoreBalances(params: {
