@@ -74,7 +74,7 @@ type RestoreResult = {
   failures: RestoreFailure[];
 };
 
-type DashboardTab = "allocation" | "balance" | "usage" | "records";
+type DashboardTab = "allocation" | "balance" | "usage" | "records" | "quota";
 
 type UsageQuery = {
   preset?: string;
@@ -112,4 +112,31 @@ type UsageRecordFilterOptions = {
   billingTypes: UsageRecordFilterOption[];
 };
 
-export type { DashboardData, DashboardTab, RestoreFailure, RestoreResult, SerializedUsageReport, UsageQuery, UsageRecordsData, UsageRecordFilterOption, UsageRecordFilterOptions };
+type DistributionItem = { label: string; value: number };
+type UsageAnalysisData = {
+  range: SerializedDateRange;
+  records: { model: DistributionItem[]; group: DistributionItem[]; endpoint: DistributionItem[]; billing: DistributionItem[] };
+  quota: {
+    accounts: Array<{
+      accountId: number;
+      name: string;
+      platform: string;
+      tokens: number;
+      actualCost: number;
+      standardCost: number;
+      fiveHourUsedPercent: number | null;
+      sevenDayUsedPercent: number | null;
+      fiveHourWindowStart: string | null;
+      sevenDayWindowStart: string | null;
+      fiveHourResetAt: string | null;
+      sevenDayResetAt: string | null;
+      usageUpdatedAt: string | null;
+    }>;
+    users: Array<{ label: string; tokens: number; actualCost: number; standardCost: number }>;
+    userSeries: Array<{ bucket: string; accountId: number | null; label: string; tokens: number; actualCost: number; standardCost: number }>;
+    buckets: string[];
+    series: Array<{ bucket: string; accountId: number | null; model: string; tokenType: string; tokens: number; actualCost: number; standardCost: number }>;
+  };
+};
+
+export type { DashboardData, DashboardTab, DistributionItem, RestoreFailure, RestoreResult, SerializedUsageReport, UsageAnalysisData, UsageQuery, UsageRecordsData, UsageRecordFilterOption, UsageRecordFilterOptions };

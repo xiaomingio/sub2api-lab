@@ -17,6 +17,7 @@ import { createSub2APIAdminClient, restoreSelectedUserBalances } from "./sub2api
 import { getUserUsageSummary } from "../shared/usage.js";
 import { getUsageCostBasisReport, listUpstreamAccounts, normalizeAllocationBasis, parseAccountIds } from "../shared/usage-costs.js";
 import { getUsageRecordFilterOptions, getUsageRecords } from "./usage-records.js";
+import { getUsageAnalysis } from "./usage-analysis.js";
 import { registerRoutes } from "./routes.js";
 
 type UsageQuery = {
@@ -36,6 +37,7 @@ type UsageQuery = {
   inbound_endpoints?: string | string[];
   group_ids?: string | string[];
   billing_types?: string | string[];
+  granularity?: string;
 };
 
 type RestoreRequestBody = {
@@ -147,6 +149,13 @@ export function createHandlers({ config, db, clientDir }: AppOptions) {
     return getUsageRecordFilterOptions(db);
   }
 
+  async function usageAnalysisApi(request: FastifyRequest) {
+    const query = request.query as UsageQuery;
+    const range = resolveDateRange({ preset: query.preset || "last_7_days", startDate: query.start_date, endDate: query.end_date, timezone: config.timezone, defaultPreset: "last_7_days" });
+    const granularity = query.granularity === "day" ? "day" : "hour";
+    return getUsageAnalysis({ db, range, timezone: config.timezone, granularity, filters: { userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) } });
+  }
+
   async function restoreBalanceApi(request: FastifyRequest, reply: FastifyReply) {
     if (!restoreClient) return reply.code(503).send({ error: "未配置 Sub2API 管理员 API Key，不能执行余额设置" });
     const body = request.body as RestoreRequestBody;
@@ -173,7 +182,7 @@ export function createHandlers({ config, db, clientDir }: AppOptions) {
     return { targetBalance, selectedUserIds: userIds, ...result };
   }
 
-  return { dashboardApi, usageApi, usageRecordsApi, usageRecordFilterOptionsApi, sendHtml, restoreBalanceApi };
+  return { dashboardApi, usageApi, usageRecordsApi, usageRecordFilterOptionsApi, usageAnalysisApi, sendHtml, restoreBalanceApi };
 }
 
 function parseQueryList(value: string | string[] | undefined): string[] {

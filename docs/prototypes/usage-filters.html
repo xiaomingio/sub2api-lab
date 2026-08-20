@@ -9,6 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>使用记录筛选原型</title>
     <link rel="stylesheet" href="./usage-filters.css" />
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   </head>
   <body>
     <main class="prototype-shell">
@@ -19,7 +20,8 @@
         </div>
         <nav class="tabs" aria-label="管理台功能">
           <a href="#">用量统计</a>
-          <a class="is-active" href="#">使用记录</a>
+          <a class="is-active" href="./usage-filters.html">使用记录</a>
+          <a href="./usage-analysis.html?view=quota">额度分析</a>
           <a href="#">成本分摊</a>
           <a href="#">余额设置</a>
         </nav>
@@ -96,12 +98,22 @@
           </details>
         </div>
 
-        <div class="active-summary"><span class="status-dot"></span><strong>当前未添加筛选条件</strong><span>24,680 条记录</span><button class="summary-link" type="button">查看结果</button></div>
+        <div class="active-summary"><span class="status-dot"></span><strong>当前未添加筛选条件</strong><span>24,680 条记录</span><a class="summary-link" id="openAnalysis" href="./usage-analysis.html">打开分析</a></div>
       </section>
 
       <section class="records-preview">
         <div class="records-heading"><div><p class="eyebrow">RESULTS</p><h2>调用记录</h2></div><span class="record-count">显示 1,000 / 24,680 条</span></div>
         <div class="table-wrap"><table><thead><tr><th>时间</th><th>用户</th><th>模型</th><th>入站接口</th><th>流式响应</th><th>计费类型</th><th>总 Token</th><th>耗时</th></tr></thead><tbody><tr><td>08-20 14:26:04</td><td>alice@example.com</td><td>claude-sonnet-4</td><td>/v1/messages</td><td><span class="badge badge-green">流式响应</span></td><td>钱包余额</td><td>8,420</td><td>12.8s</td></tr><tr><td>08-20 14:25:31</td><td>dev-team</td><td>gpt-5</td><td>/v1/responses</td><td><span class="badge">同步响应</span></td><td>订阅套餐</td><td>3,118</td><td>4.1s</td></tr><tr><td>08-20 14:24:52</td><td>bob@example.com</td><td>gemini-2.5-pro</td><td>/v1/chat/completions</td><td><span class="badge badge-green">流式响应</span></td><td>钱包余额</td><td>5,760</td><td>9.4s</td></tr></tbody></table></div>
+      </section>
+
+      <section class="record-distribution" aria-label="使用记录分布分析">
+        <div class="records-heading"><div><p class="eyebrow">RECORD ANALYSIS</p><h2>使用分布</h2><p class="distribution-subtitle">基于当前筛选条件统计各维度占比</p></div></div>
+        <div class="distribution-grid">
+          <div class="distribution-card"><h3>模型</h3><div id="modelChart" class="distribution-chart"></div></div>
+          <div class="distribution-card"><h3>分组</h3><div id="groupChart" class="distribution-chart"></div></div>
+          <div class="distribution-card"><h3>端点</h3><div id="endpointChart" class="distribution-chart"></div></div>
+          <div class="distribution-card"><h3>计费类型</h3><div id="billingChart" class="distribution-chart"></div></div>
+        </div>
       </section>
     </main>
     <script>
@@ -120,9 +132,47 @@
       document.querySelectorAll(".filter-popover .text-action, .filter-popover .primary-action, .filter-popover .preset").forEach((button) => {
         button.addEventListener("click", () => button.closest("details")?.removeAttribute("open"));
       });
-      document.querySelectorAll(".reset-button").forEach((button) => {
-        button.addEventListener("click", () => document.querySelectorAll("input[type=checkbox]").forEach((input) => { input.checked = false; }));
-      });
+      const sharedKey = "sub2api-usage-analysis-filters";
+      const filterFields = ["users", "accounts", "endpoint", "group", "billing"];
+      function readSharedState() { try { return JSON.parse(localStorage.getItem(sharedKey) || "{}"); } catch { return {}; } }
+      function restoreSharedState() {
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has("filters")) return;
+        try { localStorage.setItem(sharedKey, decodeURIComponent(params.get("filters"))); } catch {}
+        const state = readSharedState();
+        const cards = [...document.querySelectorAll(".filter-card")];
+        ["users", "accounts", "endpoint", "group", "billing"].forEach((field, index) => { const count = Number(state[field] || 0); [...cards[index + 1].querySelectorAll("input[type=checkbox]")].forEach((input, inputIndex) => { input.checked = inputIndex < count; }); });
+        if (state.range) document.querySelector(".time-card summary strong").textContent = state.range;
+      }
+      function writeSharedState() {
+        const state = readSharedState();
+        state.range = document.querySelector(".time-card summary strong")?.textContent.trim() || "最近 14 天";
+        state.users = [...document.querySelectorAll(".filter-card")][1]?.querySelectorAll("input:checked").length || 0;
+        [...document.querySelectorAll(".filter-card")].slice(2).forEach((card, index) => { state[filterFields[index + 1]] = card.querySelectorAll("input:checked").length; });
+        localStorage.setItem(sharedKey, JSON.stringify(state));
+        const query = encodeURIComponent(JSON.stringify(state));
+        document.querySelector("#openAnalysis").href = `./usage-analysis.html?filters=${query}`;
+        document.querySelector(".active-summary strong").textContent = state.users || state.accounts || state.endpoint || state.group || state.billing ? "筛选条件已应用" : "当前未添加筛选条件";
+      }
+      document.querySelectorAll("input[type=checkbox]").forEach((input) => input.addEventListener("change", writeSharedState));
+      document.querySelectorAll(".preset").forEach((button) => button.addEventListener("click", () => { document.querySelector(".time-card summary strong").textContent = button.textContent.replace("当前", "").trim(); writeSharedState(); }));
+      document.querySelectorAll(".reset-button").forEach((button) => { button.addEventListener("click", () => { document.querySelectorAll("input[type=checkbox]").forEach((input) => { input.checked = false; }); writeSharedState(); }); });
+      restoreSharedState();
+      writeSharedState();
+      function renderDistribution(id, data, colors) {
+        if (!window.echarts) return;
+        const chart = window.echarts.init(document.getElementById(id));
+        chart.setOption({
+          tooltip: { trigger: "item", formatter: "{b}<br/>{c} 条记录 ({d}%)" },
+          legend: { type: "scroll", bottom: 0, left: 4, right: 4, itemWidth: 9, itemHeight: 9, textStyle: { color: "#6d7c7b", fontSize: 10 } },
+          series: [{ type: "pie", radius: ["42%", "70%"], center: ["50%", "43%"], itemStyle: { borderColor: "#fff", borderWidth: 2 }, label: { show: true, position: "outside", formatter: (params) => `${params.name || "未标记"}\n${Math.round(params.percent || 0)}%`, color: "#182b2b", fontSize: 10, lineHeight: 15, fontWeight: 800 }, labelLine: { show: true, length: 10, length2: 8, lineStyle: { color: "#9aa9a5" } }, labelLayout: { hideOverlap: true }, data: data.map((item, index) => ({ name: item[0], value: item[1], itemStyle: { color: colors[index % colors.length] } })) }]
+        });
+        window.addEventListener("resize", () => chart.resize(), { once: true });
+      }
+      renderDistribution("modelChart", [["gpt-5", 462], ["claude-sonnet-4", 308], ["gemini-2.5-pro", 184]], ["#2563eb", "#60a5fa", "#93c5fd"]);
+      renderDistribution("groupChart", [["生产环境", 614], ["研发团队", 340], ["未分组", 92]], ["#8b5cf6", "#a78bfa", "#c4b5fd"]);
+      renderDistribution("endpointChart", [["/v1/responses", 512], ["/v1/messages", 388], ["/v1/chat/completions", 146]], ["#059669", "#34d399", "#86efac"]);
+      renderDistribution("billingChart", [["钱包余额", 704], ["订阅套餐", 342]], ["#d97706", "#fbbf24"]);
     </script>
   </body>
 </html>

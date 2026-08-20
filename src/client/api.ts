@@ -2,7 +2,7 @@
  * 文件说明: 封装 React 管理台调用 Fastify JSON API 的请求与错误处理。
  */
 
-import type { DashboardData, RestoreResult, UsageQuery, UsageRecordsData, UsageRecordFilterOptions } from "./types.js";
+import type { DashboardData, RestoreResult, UsageAnalysisData, UsageQuery, UsageRecordsData, UsageRecordFilterOptions } from "./types.js";
 
 function apiPath(path: string): string {
   return path.replace(/^\/+/, "");
@@ -85,6 +85,21 @@ export async function fetchUsageRecords(query: UsageQuery, limit: number, page: 
 export async function fetchUsageRecordFilterOptions(): Promise<UsageRecordFilterOptions> {
   const response = await fetch(`${apiPath("api/usage-record-filter-options")}`, { credentials: "same-origin" });
   return parseJsonResponse<UsageRecordFilterOptions>(response);
+}
+
+export async function fetchUsageAnalysis(query: UsageQuery, granularity: "hour" | "day", includeRecordFilters = true): Promise<UsageAnalysisData> {
+  const params = new URLSearchParams({ preset: query.preset || "last_7_days", granularity });
+  if (query.startDate) params.set("start_date", query.startDate);
+  if (query.endDate) params.set("end_date", query.endDate);
+  if (includeRecordFilters) {
+    if (query.recordUserIds?.length) params.set("user_ids", query.recordUserIds.join(","));
+    if (query.recordAccountIds?.length) params.set("account_ids", query.recordAccountIds.join(","));
+    if (query.recordInboundEndpoints?.length) params.set("inbound_endpoints", query.recordInboundEndpoints.join(","));
+    if (query.recordGroupIds?.length) params.set("group_ids", query.recordGroupIds.join(","));
+    if (query.recordBillingTypes?.length) params.set("billing_types", query.recordBillingTypes.join(","));
+  }
+  const response = await fetch(`${apiPath("api/usage-analysis")}?${params}`, { credentials: "same-origin" });
+  return parseJsonResponse<UsageAnalysisData>(response);
 }
 
 export async function restoreBalances(params: {

@@ -20,6 +20,7 @@ import type { DashboardData, DashboardTab, RestoreResult, UsageQuery, UsageRecor
 const tabLabels: Record<DashboardTab, string> = {
   usage: "用量统计",
   records: "使用记录",
+  quota: "额度分析",
   allocation: "成本分摊",
   balance: "余额设置"
 };
@@ -81,7 +82,7 @@ type AllocationColumn = {
 
 function initialTab(): DashboardTab {
   const tab = new URLSearchParams(window.location.search).get("tab");
-  return tab === "allocation" || tab === "balance" || tab === "records" ? tab : "usage";
+  return tab === "allocation" || tab === "balance" || tab === "records" || tab === "quota" ? tab : "usage";
 }
 
 function initialUsageQuery(): UsageQuery {
@@ -147,7 +148,7 @@ function compareAccountsByName(left: BalanceAccount, right: BalanceAccount): num
 function updateUrl(tab: DashboardTab, usageQuery: UsageQuery) {
   const params = new URLSearchParams();
   params.set("tab", tab);
-  if (tab === "usage" || tab === "allocation") {
+  if (tab === "usage" || tab === "allocation" || tab === "quota") {
     if (usageQuery.preset) params.set("preset", usageQuery.preset);
     if (usageQuery.startDate) params.set("start_date", usageQuery.startDate);
     if (usageQuery.endDate) params.set("end_date", usageQuery.endDate);

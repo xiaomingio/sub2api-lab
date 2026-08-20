@@ -1070,6 +1070,311 @@
   @apply bg-[color:var(--accent-soft)] text-[color:var(--accent-strong)];
 }
 
+.section-eyebrow {
+  @apply mb-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[color:var(--accent)];
+}
+
+.records-distribution-section,
+.quota-section {
+  @apply min-w-0 rounded-[14px] border border-[color:var(--panel-border)] bg-white p-5;
+  box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
+}
+
+.quota-section-actions {
+  @apply flex items-center gap-2;
+}
+
+.records-distribution-header,
+.quota-analysis-toolbar,
+.quota-section-heading {
+  @apply flex items-end justify-between gap-5;
+}
+
+.records-distribution-header p:not(.section-eyebrow),
+.quota-analysis-toolbar p:not(.section-eyebrow),
+.quota-section-heading p:not(.section-eyebrow) {
+  @apply mt-1 text-xs text-[color:var(--muted)];
+}
+
+.records-distribution-grid {
+  @apply mt-4 grid grid-cols-4 gap-4;
+}
+
+.records-distribution-card {
+  @apply min-w-0;
+}
+
+.records-distribution-card h3 {
+  @apply text-sm font-extrabold;
+}
+
+.quota-section-heading h3 {
+  @apply text-base font-extrabold;
+}
+
+.records-distribution-chart {
+  @apply h-[190px] w-full;
+}
+
+.quota-panel {
+  @apply min-h-0 overflow-auto;
+}
+
+.quota-analysis-toolbar {
+  @apply rounded-[14px] border border-[color:var(--panel-border)] bg-white p-5;
+  box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
+}
+
+.quota-toolbar-controls {
+  @apply flex items-center gap-2 text-xs font-extrabold text-[color:var(--muted)];
+}
+
+.quota-toolbar-controls > .range-section {
+  @apply border-0 bg-transparent p-0 shadow-none;
+}
+
+.segmented-control {
+  @apply flex gap-1 rounded-lg border border-[color:var(--panel-border)] bg-[#f3f7f6] p-1;
+}
+
+.segmented-control button {
+  @apply rounded-md border-0 bg-transparent px-3 py-1.5 text-xs font-extrabold text-[color:var(--muted)];
+}
+
+.segmented-control button.is-active {
+  @apply bg-[color:var(--text)] text-white;
+}
+
+.quota-kpi-grid {
+  @apply grid grid-cols-4 gap-2.5;
+}
+
+.quota-kpi {
+  @apply grid gap-1.5 rounded-lg border border-[color:var(--panel-border)] bg-[#fbfdfc] p-3.5;
+}
+
+.quota-kpi span,
+.quota-kpi small {
+  @apply text-[11px] text-[color:var(--muted)];
+}
+
+.quota-kpi strong {
+  @apply text-xl tabular-nums;
+}
+
+.quota-section {
+  @apply grid gap-3;
+}
+
+.quota-chart {
+  @apply h-[360px] w-full;
+}
+
+.account-analysis-layout {
+  @apply grid min-w-0 grid-cols-[minmax(240px,310px)_minmax(0,1fr)] gap-4;
+}
+
+.account-window-search {
+  @apply flex h-9 w-[240px] flex-none items-center gap-2 rounded-lg border border-[color:var(--panel-border)] px-3 text-[color:var(--muted)];
+}
+
+.account-window-search input {
+  @apply min-w-0 flex-1 border-0 bg-transparent text-xs outline-none;
+}
+
+.account-window-scroller {
+  @apply flex min-w-0 gap-2.5 overflow-x-auto pb-2;
+  scrollbar-width: thin;
+}
+
+.account-window-card {
+  @apply grid min-h-[108px] w-[218px] flex-none content-start gap-1.5 rounded-lg border border-[color:var(--panel-border)] bg-[#fbfdfc] px-3.5 py-2 text-left;
+}
+
+.account-window-card:hover,
+.account-window-card.is-selected {
+  @apply border-[color:var(--accent)] bg-[#f5fbf9] shadow-[0_0_0_3px_rgba(21,125,114,0.09)];
+}
+
+.account-window-card-title {
+  @apply col-start-1 row-start-1 flex min-w-0 items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-extrabold;
+}
+
+.account-window-card-title i {
+  @apply h-2 w-2 flex-none rounded-sm;
+}
+
+.account-window-card strong {
+  @apply mt-1 text-lg tabular-nums;
+}
+
+.account-window-rate {
+  @apply col-start-2 row-start-1 mt-0 justify-self-end text-base font-extrabold text-[color:var(--muted)];
+}
+
+.account-window-meter {
+  @apply col-span-2 row-start-2 block h-1.5 w-full overflow-hidden rounded-full bg-[#e5ece9];
+}
+
+.account-window-meter i {
+  @apply block h-full w-0 rounded-full bg-[#b8c5c1];
+}
+
+.account-window-card dl {
+  @apply col-span-2 row-start-3 grid grid-cols-2 gap-x-3 gap-y-2;
+}
+
+.account-window-card dl div {
+  @apply grid min-w-0 gap-0.5;
+}
+
+.account-window-card dt {
+  @apply text-[10px] text-[color:var(--muted)];
+}
+
+.account-window-card dd {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-bold tabular-nums text-[color:var(--text)];
+}
+
+.account-window-card small,
+.account-window-card em {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap text-[10px] not-italic text-[color:var(--muted)];
+}
+
+.account-window-card > em {
+  @apply mt-1 font-extrabold text-[color:var(--accent)];
+}
+
+.account-window-note {
+  @apply col-span-2 row-start-4 mt-1 border-t border-[color:var(--line)] pt-2 leading-4;
+}
+
+.account-window-metrics {
+  @apply grid min-w-0 gap-0.5;
+}
+
+.account-window-metrics em {
+  @apply text-[10px] not-italic text-[color:var(--muted)];
+}
+
+.account-window-all {
+  @apply border-dashed;
+}
+
+.account-picker {
+  @apply grid min-h-0 gap-2;
+}
+
+.account-picker > label {
+  @apply flex h-10 items-center gap-2 rounded-lg border border-[color:var(--panel-border)] px-3 text-[color:var(--muted)];
+}
+
+.account-picker input {
+  @apply min-w-0 flex-1 border-0 bg-transparent text-sm outline-none;
+}
+
+.account-picker-list {
+  @apply max-h-[410px] overflow-y-auto rounded-lg border border-[color:var(--panel-border)] bg-[#fbfdfc] p-1.5;
+}
+
+.account-picker-list > button {
+  @apply flex min-h-11 w-full items-center justify-between gap-2 rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-xs text-[color:var(--text)];
+}
+
+.account-picker-list > button:hover,
+.account-picker-list > button.is-selected {
+  @apply bg-[color:var(--accent-soft)];
+}
+
+.account-picker-list > button > span {
+  @apply grid min-w-0 gap-0.5;
+}
+
+.account-picker-list strong {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap text-xs;
+}
+
+.account-picker-list small,
+.account-picker-list em {
+  @apply text-[10px] not-italic text-[color:var(--muted)];
+}
+
+.account-picker-list em {
+  @apply flex-none tabular-nums;
+}
+
+.account-picker-list > button:first-child > span {
+  @apply block;
+}
+
+.account-picker-list > button:first-child {
+  @apply font-extrabold;
+}
+
+.account-window-detail {
+  @apply min-w-0;
+}
+
+.account-window-summary {
+  @apply grid grid-cols-4 gap-2.5 rounded-lg border border-[#d9e9e5] bg-[#f5fbf9] p-3.5;
+}
+
+.account-window-summary > div {
+  @apply grid min-w-0 gap-1;
+}
+
+.account-window-summary span {
+  @apply text-[10px] text-[color:var(--muted)];
+}
+
+.account-window-summary strong {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap text-xs;
+}
+
+.account-window-summary strong.is-muted {
+  @apply font-bold text-[color:var(--muted)];
+}
+
+.account-window-detail .quota-chart {
+  @apply mt-3 h-[330px];
+}
+
+@media (max-width: 1080px) {
+  .records-distribution-grid,
+  .quota-kpi-grid {
+    @apply grid-cols-2;
+  }
+}
+
+@media (max-width: 760px) {
+  .quota-analysis-toolbar,
+  .quota-section-heading {
+    @apply items-start flex-col;
+  }
+
+  .records-distribution-grid,
+  .quota-kpi-grid,
+  .account-window-summary {
+    @apply grid-cols-1;
+  }
+
+  .account-analysis-layout {
+    @apply grid-cols-1;
+  }
+
+  .quota-section-heading .account-window-search {
+    @apply w-full;
+  }
+
+  .account-window-card {
+    @apply w-[200px];
+  }
+
+  .account-picker-list {
+    @apply max-h-64;
+  }
+}
+
 @media (max-width: 760px) {
   .app-header {
     @apply grid items-start gap-3 pb-3;

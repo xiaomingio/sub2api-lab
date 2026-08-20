@@ -1,0 +1,205 @@
+<!doctype html>
+<!--
+  文件说明: 使用记录分析工作台原型，验证筛选、粒度、图表/表格 Tab 和堆叠面积图交互。
+  说明: 仅使用模拟数据，不代表生产接口契约。
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>使用记录分析原型</title>
+    <link rel="stylesheet" href="./usage-analysis.css" />
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  </head>
+  <body>
+    <main class="prototype-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">SUB2API LAB / ADMIN</p>
+          <h1>使用记录</h1>
+        </div>
+        <nav class="global-tabs" aria-label="管理台功能">
+          <a href="#">用量统计</a>
+          <a id="backToRecords" class="is-active" href="./usage-filters.html">使用记录</a>
+          <a href="./usage-analysis.html?view=quota">额度分析</a>
+          <a href="#">成本分摊</a>
+          <a href="#">余额设置</a>
+        </nav>
+        <button class="quiet-button" type="button">退出</button>
+      </header>
+
+      <section class="filter-workspace" aria-label="记录筛选">
+        <div class="workspace-heading">
+          <div>
+            <p class="eyebrow">QUERY BUILDER</p>
+            <h2>筛选记录</h2>
+          </div>
+          <button class="reset-button" type="button" id="resetFilters">重置全部</button>
+        </div>
+
+        <div class="filter-grid">
+          <details class="filter-card time-card">
+            <summary><span class="field-kicker">时间范围</span><strong>最近 7 天</strong><span class="summary-icon">⌄</span></summary>
+            <div class="filter-popover time-popover">
+              <div class="popover-head"><strong>时间范围</strong><button class="text-action" type="button">完成</button></div>
+              <div class="preset-list">
+                <button class="preset is-selected" type="button">最近 7 天<span>当前</span></button>
+                <button class="preset" type="button">今天</button>
+                <button class="preset" type="button">最近 14 天</button>
+                <button class="preset" type="button">最近 30 天</button>
+                <button class="preset" type="button">自定义日期</button>
+              </div>
+            </div>
+          </details>
+          <details class="filter-card">
+            <summary><span class="field-kicker">用户</span><strong>未筛选</strong><span class="summary-icon">⌄</span></summary>
+            <div class="filter-popover multi-popover"><div class="popover-head"><strong>用户</strong><button class="text-action" type="button">完成</button></div><label class="search-field">⌕<input type="search" placeholder="搜索用户或用户 ID" /></label><div class="selection-actions"><span>全部用户 <b>24</b></span><button class="text-action" type="button">全选</button><button class="text-action" type="button">清空</button></div><div class="option-list"><label class="option-row"><input type="checkbox" /><span><strong>alice@example.com</strong><small>用户 #1024</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>bob@example.com</strong><small>用户 #1025</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>dev-team</strong><small>用户 #1031</small></span></label></div><div class="popover-foot"><span>空选项表示不筛选</span><button class="primary-action" type="button">应用筛选</button></div></div>
+          </details>
+          <details class="filter-card">
+            <summary><span class="field-kicker">上游账号</span><strong>3 个账号</strong><span class="summary-icon">⌄</span></summary>
+            <div class="filter-popover multi-popover"><div class="popover-head"><strong>上游账号</strong><button class="text-action" type="button">完成</button></div><label class="search-field">⌕<input type="search" placeholder="搜索上游账号" /></label><div class="selection-actions"><span>已选 3 项</span><button class="text-action" type="button">全选</button><button class="text-action" type="button">清空</button></div><div class="option-list"><label class="option-row"><input type="checkbox" checked /><span><strong>OpenAI Primary</strong><small>账号 #24 · OpenAI</small></span></label><label class="option-row"><input type="checkbox" checked /><span><strong>Claude Team East</strong><small>账号 #21 · Anthropic</small></span></label><label class="option-row"><input type="checkbox" checked /><span><strong>Gemini Shared</strong><small>账号 #28 · Google</small></span></label></div><div class="popover-foot"><span>按账号分别计算窗口起点</span><button class="primary-action" type="button">应用筛选</button></div></div>
+          </details>
+          <details class="filter-card"><summary><span class="field-kicker">入站接口</span><strong>未筛选</strong><span class="summary-icon">⌄</span></summary><div class="filter-popover"><div class="popover-head"><strong>入站接口</strong><button class="text-action" type="button">完成</button></div><div class="option-list"><label class="option-row"><input type="checkbox" /><span><strong>/v1/messages</strong><small>Anthropic Messages</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>/v1/responses</strong><small>OpenAI Responses</small></span></label></div></div></details>
+          <details class="filter-card"><summary><span class="field-kicker">分组</span><strong>未筛选</strong><span class="summary-icon">⌄</span></summary><div class="filter-popover"><div class="popover-head"><strong>分组</strong><button class="text-action" type="button">完成</button></div><div class="option-list"><label class="option-row"><input type="checkbox" /><span><strong>生产环境</strong><small>分组 #1</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>研发团队</strong><small>分组 #4</small></span></label></div></div></details>
+          <details class="filter-card"><summary><span class="field-kicker">计费类型</span><strong>未筛选</strong><span class="summary-icon">⌄</span></summary><div class="filter-popover"><div class="popover-head"><strong>计费类型</strong><button class="text-action" type="button">完成</button></div><div class="option-list"><label class="option-row"><input type="checkbox" /><span><strong>钱包余额</strong><small>balance</small></span></label><label class="option-row"><input type="checkbox" /><span><strong>订阅套餐</strong><small>subscription</small></span></label></div></div></details>
+        </div>
+        <div class="active-summary"><span class="status-dot"></span><strong>已选 3 个上游账号</strong><span>窗口内 18,240 条记录</span><span class="summary-note">Token 统计从各账号当前窗口起点开始</span></div>
+      </section>
+
+      <section class="analysis-workspace" aria-label="使用记录分析">
+        <div class="analysis-toolbar">
+          <div>
+            <p class="eyebrow">ANALYSIS</p>
+            <h2>窗口内消耗分析</h2>
+          </div>
+          <div class="toolbar-controls">
+            <div class="segmented" aria-label="时间粒度"><span class="control-label">粒度</span><button class="is-active" type="button" data-granularity="hour">小时</button><button type="button" data-granularity="day">每天</button></div>
+          </div>
+        </div>
+
+        <div class="analysis-tabs" role="tablist" aria-label="分析视图">
+          <button class="analysis-tab is-active" type="button" role="tab" aria-selected="true" data-view="table"><span class="tab-icon">▤</span>表格</button>
+        </div>
+
+        <div class="view-panel chart-panel" data-panel="quota" hidden>
+          <div class="quota-filters" aria-label="额度分析筛选"><div><span>统计时间</span><strong>最近 7 天</strong></div><div><span>账号范围</span><strong>全部上游账号</strong></div><div><span>统计口径</span><strong>原始 Token + 实际扣费</strong></div><small>额度分析不按用户、分组、端点或计费类型过滤，确保反映账号真实额度消耗。</small></div>
+          <div class="chart-kpi-grid">
+            <div class="chart-kpi"><span>本地 Token</span><strong id="kpiTokens">1.40B</strong><small>按当前筛选条件</small></div>
+            <div class="chart-kpi"><span>实际扣费</span><strong id="kpiUserCost">$192.38</strong><small>用户实际支付</small></div>
+            <div class="chart-kpi"><span>账号成本</span><strong id="kpiAccountCost">$1,148.78</strong><small>上游原始成本</small></div>
+            <div class="chart-kpi"><span>最高 7 天使用率</span><strong id="kpiRate">40%</strong><small>上游当前额度</small></div>
+          </div>
+
+          <section class="chart-section chart-section-primary">
+            <div class="section-heading"><div><p class="eyebrow">USERS</p><h3>用户 Token 消耗</h3><p>固定展示当前筛选时间范围内 Top 10 用户，其余合并为“其他”。</p></div><div class="account-switcher" aria-label="账号图表"><button class="is-active" type="button" data-account="all">全部账号</button><button type="button" data-account="openai">OpenAI Primary</button><button type="button" data-account="claude">Claude Team East</button><button type="button" data-account="gemini">Gemini Shared</button></div></div>
+            <div id="userTokenChart" class="usage-chart chart-large" aria-label="按用户堆叠面积图"></div>
+          </section>
+
+          <section class="chart-section">
+            <div class="section-heading"><div><p class="eyebrow">BILLING</p><h3>用户费用趋势</h3><p>同时对比标准费用与实际扣费，便于识别计费差异。</p></div><div class="metric-switcher" role="group" aria-label="费用指标"><button class="is-active" type="button" data-cost-mode="actual">实际扣费</button><button type="button" data-cost-mode="standard">标准费用</button></div></div>
+            <div id="userCostChart" class="usage-chart" aria-label="按用户费用堆叠面积图"></div>
+          </section>
+
+          <section class="chart-section">
+            <div class="section-heading"><div><p class="eyebrow">UPSTREAM WINDOWS</p><h3>上游账号额度窗口</h3><p>窗口起点 = 当前下一次重置时间 - 7 天；使用率和重置时间来自上游额度接口。</p></div></div>
+            <div id="accountWindowGrid" class="window-grid"></div>
+          </section>
+
+          <section class="chart-section account-detail-section">
+            <div class="section-heading"><div><p class="eyebrow">ACCOUNT DETAIL</p><h3>账号窗口 Token 明细</h3><p>按账号、模型、Token 类型拆分，颜色代表模型，深浅代表 Token 类型。</p></div></div>
+            <div id="accountTokenChart" class="usage-chart" aria-label="按账号模型和 Token 类型堆叠面积图"></div>
+          </section>
+        </div>
+
+        <div class="view-panel table-panel" data-panel="table">
+          <div class="table-summary"><div><strong>账号窗口汇总</strong><span>本地记录从各账号窗口起点开始统计</span></div><span class="result-count">3 个账号 · 12 个模型组合</span></div>
+          <div class="table-wrap"><table><thead><tr><th>上游账号</th><th>窗口起点</th><th>下次重置</th><th>上游使用率</th><th>本地 Token</th><th>输入</th><th>输出</th><th>Cache</th><th>账号成本</th><th>用户费用</th></tr></thead><tbody><tr><td><strong class="account-name"><i class="swatch swatch-blue"></i>OpenAI Primary</strong><small>#24 · OpenAI</small></td><td>08-15 10:00</td><td>08-22 10:00</td><td><span class="rate rate-warn">40%</span></td><td class="numeric strong-number">1.28B</td><td class="numeric">804.2M</td><td class="numeric">312.4M</td><td class="numeric">163.4M</td><td class="numeric">$1,073.59</td><td class="numeric">$178.82</td></tr><tr><td><strong class="account-name"><i class="swatch swatch-purple"></i>Claude Team East</strong><small>#21 · Anthropic</small></td><td>08-18 16:00</td><td>08-25 16:00</td><td><span class="rate rate-ok">3%</span></td><td class="numeric strong-number">118.0M</td><td class="numeric">75.3M</td><td class="numeric">34.2M</td><td class="numeric">8.5M</td><td class="numeric">$75.19</td><td class="numeric">$13.56</td></tr><tr><td><strong class="account-name"><i class="swatch swatch-green"></i>Gemini Shared</strong><small>#28 · Google</small></td><td>08-20 00:00</td><td>08-27 00:00</td><td><span class="rate rate-ok">0%</span></td><td class="numeric strong-number">0</td><td class="numeric">0</td><td class="numeric">0</td><td class="numeric">0</td><td class="numeric">$0.00</td><td class="numeric">$0.00</td></tr></tbody></table></div>
+          <div class="table-note"><span class="info-mark">i</span>上游使用率来自上游额度接口；Token、费用和请求数来自 Sub2API 本地 usage_logs，账号接入前的历史用量不会出现在本地统计中。</div>
+          <section class="record-distribution">
+            <div class="section-heading"><div><p class="eyebrow">RECORD ANALYSIS</p><h3>模型、分组、端点分布</h3><p>基于当前使用记录筛选条件统计，和上方表格保持一致。</p></div></div>
+            <div class="distribution-grid"><div><h4>模型</h4><div id="modelChart" class="distribution-chart"></div></div><div><h4>分组</h4><div id="groupChart" class="distribution-chart"></div></div><div><h4>端点</h4><div id="endpointChart" class="distribution-chart"></div></div><div><h4>计费类型</h4><div id="billingChart" class="distribution-chart"></div></div></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const chartData = {
+        hour: ['00:00','02:00','04:00','06:00','08:00','10:00','12:00','14:00','16:00','18:00','20:00','22:00'],
+        day: ['08/14','08/15','08/16','08/17','08/18','08/19','08/20'],
+        users: [
+          { name: 'alice@example.com', color: '#2563eb', values: [42,58,36,64,88,110,96,128,142,120,154,171] },
+          { name: 'bob@example.com', color: '#8b5cf6', values: [32,41,55,48,64,72,81,76,92,105,98,110] },
+          { name: 'dev-team', color: '#059669', values: [18,20,24,31,28,35,42,38,48,52,58,61] },
+          { name: 'data-platform', color: '#d97706', values: [13,19,16,22,25,31,28,36,39,35,44,48] },
+          { name: '其他', color: '#94a3b8', values: [24,22,30,28,34,38,41,39,43,48,46,52] }
+        ],
+        models: [
+          { name: 'gpt-5', color: '#2563eb', values: [42,58,36,64,88,110,96,128,142,120,154,171] },
+          { name: 'claude-sonnet-4', color: '#8b5cf6', values: [32,41,55,48,64,72,81,76,92,105,98,110] },
+          { name: 'gemini-2.5-pro', color: '#059669', values: [18,20,24,31,28,35,42,38,48,52,58,61] }
+        ],
+        types: [{ name: '输入', ratio: .58, shade: 0 }, { name: '输出', ratio: .27, shade: 18 }, { name: 'Cache Read', ratio: .11, shade: 34 }, { name: 'Cache Creation', ratio: .04, shade: 48 }],
+        accounts: [
+          { key: 'openai', name: 'OpenAI Primary', provider: 'OpenAI', reset: '08-22 10:00', start: '08-15 10:00', rate: 40, tokens: '1.28B', cost: '$1,073.59', color: '#2563eb' },
+          { key: 'claude', name: 'Claude Team East', provider: 'Anthropic', reset: '08-25 16:00', start: '08-18 16:00', rate: 3, tokens: '118.0M', cost: '$75.19', color: '#8b5cf6' },
+          { key: 'gemini', name: 'Gemini Shared', provider: 'Google', reset: '08-27 00:00', start: '08-20 00:00', rate: 0, tokens: '0', cost: '$0.00', color: '#059669' }
+        ]
+      };
+      let charts = {};
+      let currentGranularity = 'hour';
+      let currentAccount = 'all';
+      let costMode = 'actual';
+      const sharedKey = 'sub2api-usage-analysis-filters';
+      const isQuotaPage = new URLSearchParams(window.location.search).get('view') === 'quota';
+      const activeFilters = { range: '最近 7 天', users: '未筛选', accounts: '未筛选', endpoint: '未筛选', group: '未筛选', billing: '未筛选' };
+      function restoreSharedState() { const params = new URLSearchParams(window.location.search); let state = {}; try { state = JSON.parse(localStorage.getItem(sharedKey) || '{}'); } catch {} if (params.has('filters')) { try { state = JSON.parse(decodeURIComponent(params.get('filters'))); localStorage.setItem(sharedKey, JSON.stringify(state)); } catch {} } const cards = [...document.querySelectorAll('.filter-card')]; ['users', 'accounts', 'endpoint', 'group', 'billing'].forEach((field, index) => { const count = Number(state[field] || 0); [...cards[index + 1].querySelectorAll('input[type="checkbox"]')].forEach((input, inputIndex) => { input.checked = inputIndex < count; }); }); if (state.range) document.querySelector('.time-card summary strong').textContent = state.range; }
+
+      function mixColor(hex, amount) { const value = hex.replace('#', ''); const rgb = [parseInt(value.slice(0, 2), 16), parseInt(value.slice(2, 4), 16), parseInt(value.slice(4, 6), 16)]; const mixed = rgb.map((channel) => Math.round(channel + (255 - channel) * amount / 100)); return '#' + mixed.map((channel) => channel.toString(16).padStart(2, '0')).join(''); }
+      function initChart(id) { if (!window.echarts) return null; const el = document.getElementById(id); if (!charts[id]) charts[id] = window.echarts.init(el); return charts[id]; }
+      function labels() { return chartData[currentGranularity]; }
+      function scale(values, factor = 1) { const multiplier = currentGranularity === 'day' ? 8.4 : 1; return values.map((value, index) => Math.round(value * multiplier * factor * (1 + ((index % 3) - 1) * .08))); }
+      function baseOption(yName, formatter) { return { animationDuration: 350, tooltip: { trigger: 'axis', axisPointer: { type: 'line' }, valueFormatter: formatter }, grid: { top: 62, right: 22, bottom: 34, left: 58 }, xAxis: { type: 'category', boundaryGap: false, data: labels(), axisLine: { lineStyle: { color: '#d6e2df' } }, axisLabel: { color: '#748481', fontSize: 11 } }, yAxis: { type: 'value', name: yName, nameTextStyle: { color: '#748481', padding: [0, 0, 8, 0] }, axisLabel: { color: '#748481', fontSize: 11, formatter: formatter }, splitLine: { lineStyle: { color: '#e7efed' } } } }; }
+      function stackedSeries(items, typeKey, factor = 1) { return items.map((item) => ({ name: item.name, type: 'line', stack: typeKey, smooth: .18, symbol: 'none', emphasis: { focus: 'series' }, lineStyle: { width: 1 }, areaStyle: { opacity: .72 }, itemStyle: { color: item.color }, data: scale(item.values, factor) })); }
+      function renderUserCharts() {
+        const multiplier = currentAccount === 'all' ? 1 : currentAccount === 'openai' ? .68 : currentAccount === 'claude' ? .25 : .1;
+        const userChart = initChart('userTokenChart');
+        const tokenOptions = baseOption('Token', (value) => `${Number(value).toLocaleString()} Token`); tokenOptions.legend = { type: 'scroll', top: 8, left: 8, right: 8, textStyle: { color: '#60716f', fontSize: 11 } }; tokenOptions.series = stackedSeries(chartData.users, 'users', multiplier); userChart?.setOption(tokenOptions, true);
+        const costChart = initChart('userCostChart'); const costs = chartData.users.map((user) => ({ ...user, values: user.values.map((value) => value * (costMode === 'actual' ? .034 : .051)), color: user.color })); const costOptions = baseOption('USD', (value) => `$${Number(value).toFixed(2)}`); costOptions.legend = tokenOptions.legend; costOptions.series = stackedSeries(costs, 'costs', multiplier); costChart?.setOption(costOptions, true);
+        const detail = initChart('accountTokenChart'); const detailItems = []; chartData.models.forEach((model) => chartData.types.forEach((type) => detailItems.push({ name: `${model.name} · ${type.name}`, color: mixColor(model.color, type.shade), values: model.values.map((value) => value * type.ratio) }))); const detailOptions = baseOption('Token', (value) => `${Number(value).toLocaleString()} Token`); detailOptions.legend = { type: 'scroll', top: 8, left: 8, right: 8, textStyle: { color: '#60716f', fontSize: 11 } }; detailOptions.series = stackedSeries(detailItems, 'accountTokens', multiplier); detail?.setOption(detailOptions, true);
+      }
+      function renderDistribution(id, data, colors) { const instance = initChart(id); const option = { tooltip: { trigger: 'item', formatter: '{b}<br/>{c} 条记录 ({d}%)' }, legend: { type: 'scroll', bottom: 0, left: 4, right: 4, itemWidth: 9, itemHeight: 9, textStyle: { color: '#60716f', fontSize: 10 } }, series: [{ type: 'pie', radius: ['42%', '70%'], center: ['50%', '43%'], avoidLabelOverlap: true, itemStyle: { borderColor: '#fff', borderWidth: 2 }, label: { show: true, position: 'outside', formatter: (params) => `${params.name || '未标记'}\\n${Math.round(params.percent || 0)}%`, color: '#172a2a', fontSize: 10, lineHeight: 15, fontWeight: 800 }, labelLine: { show: true, length: 10, length2: 8, lineStyle: { color: '#9aa9a5' } }, labelLayout: { hideOverlap: true }, data: data.map((item, index) => ({ name: item[0], value: item[1], itemStyle: { color: Array.isArray(colors) ? colors[index % colors.length] : colors } })) }] }; instance?.setOption(option, true); }
+      function renderWindows() { const selected = currentAccount === 'all' ? chartData.accounts : chartData.accounts.filter((account) => account.key === currentAccount); document.getElementById('accountWindowGrid').innerHTML = selected.map((account) => `<article class="window-card"><div class="window-card-head"><span class="account-dot" style="background:${account.color}"></span><strong>${account.name}</strong><span class="window-rate">${account.rate}%</span></div><div class="window-bar"><span style="width:${Math.max(account.rate, 1)}%;background:${account.color}"></span></div><dl><div><dt>窗口起点</dt><dd>${account.start}</dd></div><div><dt>下次重置</dt><dd>${account.reset}</dd></div><div><dt>本地 Token</dt><dd>${account.tokens}</dd></div><div><dt>账号成本</dt><dd>${account.cost}</dd></div></dl><small>使用率来自上游额度接口；本地 Token 从窗口起点后的 usage_logs 开始。</small></article>`).join(''); }
+      function renderRecordDistributions() { if (!window.echarts) return; renderDistribution('modelChart', [['gpt-5', 462], ['claude-sonnet-4', 308], ['gemini-2.5-pro', 184]], ['#2563eb', '#60a5fa', '#93c5fd']); renderDistribution('groupChart', [['生产环境', 614], ['研发团队', 340], ['未分组', 92]], ['#8b5cf6', '#a78bfa', '#c4b5fd']); renderDistribution('endpointChart', [['/v1/responses', 512], ['/v1/messages', 388], ['/v1/chat/completions', 146]], ['#059669', '#34d399', '#86efac']); renderDistribution('billingChart', [['钱包余额', 704], ['订阅套餐', 342]], ['#d97706', '#fbbf24']); }
+      function renderCharts() { if (!window.echarts) { document.querySelector('.chart-panel').insertAdjacentHTML('beforeend', '<div class="chart-error">ECharts 加载失败，请检查网络后刷新原型。</div>'); return; } renderUserCharts(); renderWindows(); document.getElementById('kpiTokens').textContent = currentAccount === 'gemini' ? '0' : currentAccount === 'claude' ? '118.0M' : currentAccount === 'openai' ? '1.28B' : '1.40B'; Object.values(charts).forEach((chart) => chart.resize()); }
+
+      function syncFilterState() {
+        const cards = [...document.querySelectorAll('.filter-card')];
+        cards.forEach((card) => { const label = card.querySelector('.field-kicker')?.textContent.trim(); const checked = card.querySelectorAll('input[type="checkbox"]:checked').length; if (!label) return; activeFilters[{ '时间范围': 'range', '用户': 'users', '上游账号': 'accounts', '入站接口': 'endpoint', '分组': 'group', '计费类型': 'billing' }[label]] = checked ? `${checked} 项已选` : (label === '时间范围' ? document.querySelector('.time-card summary strong').textContent.trim() : '未筛选'); });
+        localStorage.setItem(sharedKey, JSON.stringify({ range: activeFilters.range, users: activeFilters.users === '未筛选' ? 0 : Number.parseInt(activeFilters.users), accounts: activeFilters.accounts === '未筛选' ? 0 : Number.parseInt(activeFilters.accounts), endpoint: activeFilters.endpoint === '未筛选' ? 0 : Number.parseInt(activeFilters.endpoint), group: activeFilters.group === '未筛选' ? 0 : Number.parseInt(activeFilters.group), billing: activeFilters.billing === '未筛选' ? 0 : Number.parseInt(activeFilters.billing) }));
+        document.querySelector('.active-summary strong').textContent = `当前筛选：${activeFilters.range} · ${activeFilters.accounts}`;
+        document.querySelector('.active-summary span:nth-of-type(2)').textContent = '图表与表格使用同一查询条件';
+        document.querySelector('.table-summary .result-count').textContent = `${activeFilters.accounts} · 当前筛选已应用`;
+        if (charts.userTokenChart) renderCharts();
+      }
+      function openView(view) { document.body.classList.toggle('quota-mode', view === 'quota'); document.body.classList.toggle('quota-page', isQuotaPage); document.querySelectorAll('[data-panel]').forEach((panel) => panel.hidden = panel.dataset.panel !== view); document.querySelectorAll('.analysis-tab').forEach((tab) => { const active = tab.dataset.view === view; tab.classList.toggle('is-active', active); tab.setAttribute('aria-selected', active ? 'true' : 'false'); }); document.querySelectorAll('.global-tabs a').forEach((link) => link.classList.toggle('is-active', isQuotaPage ? link.textContent.trim() === '额度分析' : link.textContent.trim() === '使用记录')); if (view === 'quota') requestAnimationFrame(renderCharts); if (view === 'table') requestAnimationFrame(renderRecordDistributions); }
+
+      document.querySelectorAll('.analysis-tab').forEach((tab) => tab.addEventListener('click', () => openView(tab.dataset.view)));
+      document.querySelectorAll('[data-granularity]').forEach((button) => button.addEventListener('click', () => { currentGranularity = button.dataset.granularity; document.querySelectorAll('[data-granularity]').forEach((item) => item.classList.toggle('is-active', item === button)); if (charts.userTokenChart) renderCharts(); }));
+      document.querySelectorAll('[data-account]').forEach((button) => button.addEventListener('click', () => { currentAccount = button.dataset.account; document.querySelectorAll('[data-account]').forEach((item) => item.classList.toggle('is-active', item === button)); if (charts.userTokenChart) renderCharts(); }));
+      document.querySelectorAll('[data-cost-mode]').forEach((button) => button.addEventListener('click', () => { costMode = button.dataset.costMode; document.querySelectorAll('[data-cost-mode]').forEach((item) => item.classList.toggle('is-active', item === button)); if (charts.userTokenChart) renderCharts(); }));
+      document.querySelectorAll('details').forEach((detail) => detail.addEventListener('toggle', () => { if (detail.open) document.querySelectorAll('details[open]').forEach((other) => { if (other !== detail) other.removeAttribute('open'); }); }));
+      document.addEventListener('click', (event) => { const open = document.querySelector('details[open]'); if (open && event.target instanceof Node && !open.contains(event.target)) open.removeAttribute('open'); });
+      document.querySelectorAll('input[type="checkbox"]').forEach((input) => input.addEventListener('change', syncFilterState));
+      document.querySelectorAll('.preset').forEach((button) => button.addEventListener('click', () => { activeFilters.range = button.textContent.replace('当前', '').trim(); document.querySelector('.time-card summary strong').textContent = activeFilters.range; syncFilterState(); }));
+      document.querySelector('#resetFilters').addEventListener('click', () => { document.querySelectorAll('input[type="checkbox"]').forEach((input) => input.checked = false); syncFilterState(); });
+      document.querySelector('#backToRecords').addEventListener('click', (event) => { event.preventDefault(); window.location.href = `./usage-filters.html?filters=${encodeURIComponent(localStorage.getItem(sharedKey) || '{}')}`; });
+      restoreSharedState();
+      syncFilterState();
+      renderRecordDistributions();
+      if (isQuotaPage) { document.querySelector('h1').textContent = '额度分析'; document.title = '额度分析原型'; }
+      openView(isQuotaPage ? 'quota' : 'table');
+      window.addEventListener('resize', () => Object.values(charts).forEach((chart) => chart.resize()));
+    </script>
+  </body>
+</html>

@@ -3,11 +3,13 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { fetchDashboard, fetchUsageRecordFilterOptions, fetchUsageRecords } from "./api.js";
+import { fetchDashboard, fetchUsageAnalysis, fetchUsageRecordFilterOptions, fetchUsageRecords } from "./api.js";
 import { AllocationTab } from "./features/AllocationTab.js";
 import { BalanceSettingsTab } from "./features/BalanceSettingsTab.js";
 import { RecordsTab } from "./features/RecordsTab.js";
 import { UsageTab } from "./features/UsageTab.js";
+import { QuotaAnalysisTab } from "./features/QuotaAnalysisTab.js";
+import type { UsageAnalysisData } from "./types.js";
 import {
   allocationSelectionKey,
   defaultAllocationSelectedUserIds,
@@ -29,6 +31,7 @@ export function App() {
   const [recordsLimit, setRecordsLimit] = useState(100);
   const [recordsPage, setRecordsPage] = useState(1);
   const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordAnalysis, setRecordAnalysis] = useState<UsageAnalysisData | null>(null);
   const [allocationSelectedUserIds, setAllocationSelectedUserIds] = useState<Set<number>>(new Set());
   const allocationInitialized = useRef(false);
   const allocationSelectionKeyRef = useRef("");
@@ -82,6 +85,11 @@ export function App() {
       .finally(() => setRecordsLoading(false));
   }, [recordsLimit, recordsPage, tab, usageQuery]);
 
+  useEffect(() => {
+    if (tab !== "records") return;
+    void fetchUsageAnalysis(usageQuery, "day", true).then(setRecordAnalysis).catch(() => setRecordAnalysis(null));
+  }, [tab, usageQuery]);
+
   return (
     <main className="page-shell">
       <header className="app-header">
@@ -129,8 +137,10 @@ export function App() {
               page={recordsPage}
               onPageChange={setRecordsPage}
               onUsageQueryChange={setUsageQuery}
+              analysis={recordAnalysis}
             />
           ) : null}
+          {tab === "quota" ? <QuotaAnalysisTab data={data} usageQuery={usageQuery} /> : null}
           {tab === "allocation" ? (
             <AllocationTab
               data={data}

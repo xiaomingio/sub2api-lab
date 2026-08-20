@@ -12,6 +12,8 @@ import { requestTypeLabel } from "../../shared/request-type.js";
 import { billingTypeLabel } from "../../shared/billing-type.js";
 import { recordLabels } from "./shared.js";
 import type { DashboardData, UsageQuery, UsageRecordsData, UsageRecordFilterOption, UsageRecordFilterOptions } from "../types.js";
+import { UsageDistributionCharts } from "../components/UsageDistributionCharts.js";
+import type { UsageAnalysisData } from "../types.js";
 
 const emptyRecordFilterOptions: UsageRecordFilterOptions = {
   users: [],
@@ -32,6 +34,7 @@ export function RecordsTab(props: {
   loading: boolean;
   onLimitChange: (limit: number) => void;
   onUsageQueryChange: (query: UsageQuery) => void;
+  analysis: UsageAnalysisData | null;
 }) {
   const range = props.records?.range || props.data.usage.range;
   const filterOptions = props.filterOptions || emptyRecordFilterOptions;
@@ -75,6 +78,7 @@ export function RecordsTab(props: {
         </div>
       </div>
 
+      <UsageDistributionCharts data={props.analysis?.records || emptyDistributionData} />
       <div className="table-section records-table-section">
         <DataTable
           rows={props.records?.rows || []}
@@ -88,6 +92,8 @@ export function RecordsTab(props: {
     </section>
   );
 }
+
+const emptyDistributionData = { model: [], group: [], endpoint: [], billing: [] };
 
 function RecordFilterCard(props: { label: string; options: UsageRecordFilterOption[]; selected: string[]; onChange: (values: string[]) => void; searchable?: boolean; searchPlaceholder?: string }) {
   const [open, setOpen] = useState(false);
