@@ -16,7 +16,7 @@ import { resolveDateRange, resolveDateTimeRange } from "../shared/ranges.js";
 import { createSub2APIAdminClient, restoreSelectedUserBalances } from "./sub2api-admin.js";
 import { getUserUsageSummary } from "../shared/usage.js";
 import { getUsageCostBasisReport, listUpstreamAccounts, normalizeAllocationBasis, parseAccountIds } from "../shared/usage-costs.js";
-import { getUsageRecords } from "./usage-records.js";
+import { getUsageRecordFilterOptions, getUsageRecords } from "./usage-records.js";
 import { registerRoutes } from "./routes.js";
 
 type UsageQuery = {
@@ -30,6 +30,12 @@ type UsageQuery = {
   allocation_start_at?: string;
   allocation_end_at?: string;
   limit?: string;
+  page?: string;
+  user_ids?: string | string[];
+  account_ids?: string | string[];
+  inbound_endpoints?: string | string[];
+  group_ids?: string | string[];
+  billing_types?: string | string[];
 };
 
 type RestoreRequestBody = {
@@ -134,7 +140,11 @@ export function createHandlers({ config, db, clientDir }: AppOptions) {
       timezone: config.timezone,
       defaultPreset: config.defaultRange
     });
-    return getUsageRecords({ db, range, limit: query.limit, defaultLimit: config.maxRows });
+    return getUsageRecords({ db, range, limit: query.limit, page: query.page, defaultLimit: config.maxRows, userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) });
+  }
+
+  async function usageRecordFilterOptionsApi() {
+    return getUsageRecordFilterOptions(db);
   }
 
   async function restoreBalanceApi(request: FastifyRequest, reply: FastifyReply) {
@@ -163,7 +173,11 @@ export function createHandlers({ config, db, clientDir }: AppOptions) {
     return { targetBalance, selectedUserIds: userIds, ...result };
   }
 
-  return { dashboardApi, sendHtml, usageApi, usageRecordsApi, restoreBalanceApi };
+  return { dashboardApi, usageApi, usageRecordsApi, usageRecordFilterOptionsApi, sendHtml, restoreBalanceApi };
+}
+
+function parseQueryList(value: string | string[] | undefined): string[] {
+  return [...new Set((Array.isArray(value) ? value : value ? [value] : []).flatMap((item) => item.split(",")).map((item) => item.trim()).filter(Boolean))];
 }
 
 type RouteHandlers = ReturnType<typeof createHandlers>;

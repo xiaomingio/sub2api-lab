@@ -1,3 +1,6 @@
+/*
+ * 文件说明: 管理台共享的 Tab、查询状态、展示标签和成本分摊辅助逻辑。
+ */
 
 import type { ReactNode } from "react";
 import {
@@ -93,8 +96,21 @@ function initialUsageQuery(): UsageQuery {
     allocationBasis: allocationBasis === "actual_cost" || allocationBasis === "total_cost" ? allocationBasis : "balance",
     allocationAccountIds: parseAccountIdsParam(params),
     allocationStartAt: params.get("allocation_start_at") || undefined,
-    allocationEndAt: params.get("allocation_end_at") || undefined
+    allocationEndAt: params.get("allocation_end_at") || undefined,
+    recordUserIds: parseNumberList(params, "user_ids"),
+    recordAccountIds: parseNumberList(params, "account_ids"),
+    recordInboundEndpoints: parseStringList(params, "inbound_endpoints"),
+    recordGroupIds: parseStringList(params, "group_ids"),
+    recordBillingTypes: parseStringList(params, "billing_types")
   };
+}
+
+function parseStringList(params: URLSearchParams, key: string): string[] {
+  return [...new Set(params.getAll(key).flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean))];
+}
+
+function parseNumberList(params: URLSearchParams, key: string): number[] {
+  return [...new Set(parseStringList(params, key).map(Number).filter((value) => Number.isInteger(value) && value > 0))];
 }
 
 function normalizeAccountIds(ids: Array<number | undefined> | undefined): number[] {
@@ -139,6 +155,16 @@ function updateUrl(tab: DashboardTab, usageQuery: UsageQuery) {
   if (tab === "usage") {
     if (usageQuery.sort) params.set("sort", usageQuery.sort);
     if (usageQuery.order) params.set("order", usageQuery.order);
+  }
+  if (tab === "records") {
+    if (usageQuery.preset) params.set("preset", usageQuery.preset);
+    if (usageQuery.startDate) params.set("start_date", usageQuery.startDate);
+    if (usageQuery.endDate) params.set("end_date", usageQuery.endDate);
+    if (usageQuery.recordUserIds?.length) params.set("user_ids", usageQuery.recordUserIds.join(","));
+    if (usageQuery.recordAccountIds?.length) params.set("account_ids", usageQuery.recordAccountIds.join(","));
+    if (usageQuery.recordInboundEndpoints?.length) params.set("inbound_endpoints", usageQuery.recordInboundEndpoints.join(","));
+    if (usageQuery.recordGroupIds?.length) params.set("group_ids", usageQuery.recordGroupIds.join(","));
+    if (usageQuery.recordBillingTypes?.length) params.set("billing_types", usageQuery.recordBillingTypes.join(","));
   }
   if (tab === "allocation" && usageQuery.allocationBasis && usageQuery.allocationBasis !== "balance") {
     params.set("allocation_basis", usageQuery.allocationBasis);
@@ -189,7 +215,7 @@ const recordLabels: Record<string, string> = {
   first_token_ms: "首 Token 延迟",
   duration_ms: "总耗时",
   request_type: "请求类型",
-  billing_mode: "计费模式",
+  billing_type: "计费类型",
   currency: "货币",
   stream: "流式响应",
   is_stream: "流式响应",

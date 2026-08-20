@@ -86,6 +86,11 @@ type UsageQuery = {
   allocationAccountIds?: number[];
   allocationStartAt?: string;
   allocationEndAt?: string;
+  recordUserIds?: number[];
+  recordAccountIds?: number[];
+  recordInboundEndpoints?: string[];
+  recordGroupIds?: string[];
+  recordBillingTypes?: string[];
 };
 
 type UsageRecordsData = {
@@ -93,7 +98,18 @@ type UsageRecordsData = {
   rows: Array<Record<string, unknown>>;
   total: number;
   limit: number;
+  page: number;
+  pageCount: number;
   range: SerializedDateRange;
 };
 
-export type { DashboardData, DashboardTab, RestoreFailure, RestoreResult, SerializedUsageReport, UsageQuery, UsageRecordsData };
+type UsageRecordFilterOption = { value: string; label: string; hint?: string };
+type UsageRecordFilterOptions = {
+  users: UsageRecordFilterOption[];
+  accounts: UsageRecordFilterOption[];
+  inboundEndpoints: UsageRecordFilterOption[];
+  groups: UsageRecordFilterOption[];
+  billingTypes: UsageRecordFilterOption[];
+};
+
+export type { DashboardData, DashboardTab, RestoreFailure, RestoreResult, SerializedUsageReport, UsageQuery, UsageRecordsData, UsageRecordFilterOption, UsageRecordFilterOptions };

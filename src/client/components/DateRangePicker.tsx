@@ -3,6 +3,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import type { CSSProperties } from "react";
 import { presetLabels } from "../../shared/ranges.js";
 import type { RangePreset } from "../../shared/ranges.js";
@@ -103,9 +104,9 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
         onToggle={() => requestAnimationFrame(positionPanel)}
       >
         <summary>
-          <span className="calendar-icon" aria-hidden="true" />
-          <span title={rangeText}>{range.label}</span>
-          <span className="chevron" aria-hidden="true" />
+          <span className="field-kicker">时间范围</span>
+          <strong title={rangeText}>{range.label}</strong>
+          <ChevronDown className="chevron" size={17} aria-hidden="true" />
         </summary>
         <div className="range-panel" ref={panelRef} style={panelStyle}>
           <div className="preset-grid">

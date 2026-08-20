@@ -129,3 +129,44 @@
     @apply left-3 right-3 w-auto;
   }
 }
+
+/* 使用记录表格按原型保持轻量横向分隔，排序和列筛选仍保留。 */
+.records-table-section .data-table {
+  @apply text-xs;
+}
+
+.records-table-section .data-table th,
+.records-table-section .data-table td {
+  @apply border-r-0;
+}
+
+.records-table-section .data-table th {
+  @apply bg-white px-2 py-2;
+}
+
+.records-table-section .data-table td {
+  @apply px-2 py-2.5 text-xs;
+}
+
+.records-table-section .data-table-heading,
+.records-table-section .data-table-sort-area {
+  min-height: 24px;
+}
+
+.records-table-section .data-table-sort-area {
+  @apply text-[11px] font-extrabold text-[#60726f];
+}
+
+.records-table-section .data-table-sort,
+.records-table-section .data-table-filter-button {
+  @apply h-5 w-5;
+}
+
+.records-table-section .data-table-sort svg,
+.records-table-section .data-table-filter-button svg {
+  @apply h-3.5 w-3.5;
+}
+
+.records-table-section .data-table-filter-button {
+  @apply rounded-md;
+}

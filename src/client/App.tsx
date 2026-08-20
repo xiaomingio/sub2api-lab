@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { fetchDashboard, fetchUsageRecords } from "./api.js";
+import { fetchDashboard, fetchUsageRecordFilterOptions, fetchUsageRecords } from "./api.js";
 import { AllocationTab } from "./features/AllocationTab.js";
 import { BalanceSettingsTab } from "./features/BalanceSettingsTab.js";
 import { RecordsTab } from "./features/RecordsTab.js";
@@ -16,7 +16,7 @@ import {
   tabLabels,
   updateUrl
 } from "./features/shared.js";
-import type { DashboardData, DashboardTab, UsageQuery, UsageRecordsData } from "./types.js";
+import type { DashboardData, DashboardTab, UsageQuery, UsageRecordsData, UsageRecordFilterOptions } from "./types.js";
 
 export function App() {
   const [tab, setTab] = useState<DashboardTab>(initialTab);
@@ -25,7 +25,9 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [records, setRecords] = useState<UsageRecordsData | null>(null);
-  const [recordsLimit, setRecordsLimit] = useState(1000);
+  const [recordFilterOptions, setRecordFilterOptions] = useState<UsageRecordFilterOptions | null>(null);
+  const [recordsLimit, setRecordsLimit] = useState(100);
+  const [recordsPage, setRecordsPage] = useState(1);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [allocationSelectedUserIds, setAllocationSelectedUserIds] = useState<Set<number>>(new Set());
   const allocationInitialized = useRef(false);
@@ -60,12 +62,25 @@ export function App() {
 
   useEffect(() => {
     if (tab !== "records") return;
+    setRecordsPage(1);
+  }, [usageQuery, tab]);
+
+  useEffect(() => {
+    if (tab !== "records") return;
+    setRecordFilterOptions(null);
+    void fetchUsageRecordFilterOptions()
+      .then(setRecordFilterOptions)
+      .catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : "加载筛选选项失败。"));
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== "records") return;
     setRecordsLoading(true);
-    void fetchUsageRecords(usageQuery, recordsLimit)
+    void fetchUsageRecords(usageQuery, recordsLimit, recordsPage)
       .then(setRecords)
       .catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : "加载使用记录失败。"))
       .finally(() => setRecordsLoading(false));
-  }, [recordsLimit, tab, usageQuery]);
+  }, [recordsLimit, recordsPage, tab, usageQuery]);
 
   return (
     <main className="page-shell">
@@ -107,9 +122,12 @@ export function App() {
               data={data}
               usageQuery={usageQuery}
               records={records}
+              filterOptions={recordFilterOptions}
               limit={recordsLimit}
               loading={recordsLoading}
               onLimitChange={setRecordsLimit}
+              page={recordsPage}
+              onPageChange={setRecordsPage}
               onUsageQueryChange={setUsageQuery}
             />
           ) : null}

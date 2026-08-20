@@ -2,7 +2,7 @@
  * 文件说明: 封装 React 管理台调用 Fastify JSON API 的请求与错误处理。
  */
 
-import type { DashboardData, RestoreResult, UsageQuery, UsageRecordsData } from "./types.js";
+import type { DashboardData, RestoreResult, UsageQuery, UsageRecordsData, UsageRecordFilterOptions } from "./types.js";
 
 function apiPath(path: string): string {
   return path.replace(/^\/+/, "");
@@ -40,12 +40,18 @@ function dashboardSearch(query: UsageQuery): string {
   return params.toString();
 }
 
-function usageRecordsSearch(query: UsageQuery, limit: number): string {
+function usageRecordsSearch(query: UsageQuery, limit: number, page: number): string {
   const params = new URLSearchParams();
   if (query.preset) params.set("preset", query.preset);
   if (query.startDate) params.set("start_date", query.startDate);
   if (query.endDate) params.set("end_date", query.endDate);
+  if (query.recordUserIds?.length) params.set("user_ids", query.recordUserIds.join(","));
+  if (query.recordAccountIds?.length) params.set("account_ids", query.recordAccountIds.join(","));
+  if (query.recordInboundEndpoints?.length) params.set("inbound_endpoints", query.recordInboundEndpoints.join(","));
+  if (query.recordGroupIds?.length) params.set("group_ids", query.recordGroupIds.join(","));
+  if (query.recordBillingTypes?.length) params.set("billing_types", query.recordBillingTypes.join(","));
   params.set("limit", String(limit));
+  params.set("page", String(page));
   return params.toString();
 }
 
@@ -70,10 +76,15 @@ export async function fetchDashboard(query: UsageQuery): Promise<DashboardData> 
   return parseJsonResponse<DashboardData>(response);
 }
 
-export async function fetchUsageRecords(query: UsageQuery, limit: number): Promise<UsageRecordsData> {
-  const search = usageRecordsSearch(query, limit);
+export async function fetchUsageRecords(query: UsageQuery, limit: number, page: number): Promise<UsageRecordsData> {
+  const search = usageRecordsSearch(query, limit, page);
   const response = await fetch(`${apiPath("api/usage-records")}?${search}`, { credentials: "same-origin" });
   return parseJsonResponse<UsageRecordsData>(response);
+}
+
+export async function fetchUsageRecordFilterOptions(): Promise<UsageRecordFilterOptions> {
+  const response = await fetch(`${apiPath("api/usage-record-filter-options")}`, { credentials: "same-origin" });
+  return parseJsonResponse<UsageRecordFilterOptions>(response);
 }
 
 export async function restoreBalances(params: {

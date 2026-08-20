@@ -9,15 +9,15 @@
 @layer base {
   :root {
     color-scheme: light;
-    --bg: #f6f8fb;
+    --bg: #f4f8f7;
     --panel: #ffffff;
-    --panel-border: #dce3eb;
-    --text: #172033;
-    --muted: #697386;
-    --line: #e6ebf1;
-    --accent: #0f9d8f;
-    --accent-soft: #c8f7ed;
-    --accent-strong: #08766e;
+    --panel-border: #d8e3e0;
+    --text: #182b2b;
+    --muted: #6d7c7b;
+    --line: #e1e9e6;
+    --accent: #157d72;
+    --accent-soft: #e1f2ef;
+    --accent-strong: #0f685f;
     --danger: #b42318;
     --warning: #946200;
     --success: #087443;
@@ -497,12 +497,11 @@
   }
 
   .chevron {
-    @apply ml-auto h-[9px] w-[9px] rotate-45 border-b-2 border-r-2 border-[#9aa6b8];
-    transform: rotate(45deg) translateY(-3px);
+    @apply ml-auto flex-none text-[#9aa6b8] transition-transform;
   }
 
   .range-picker[open] .chevron {
-    transform: rotate(225deg) translateY(-2px);
+    @apply rotate-180;
   }
 
   .range-panel {
@@ -813,13 +812,51 @@
   grid-template-rows: none;
 }
 
+.records-filter-workspace {
+  @apply relative;
+  @apply rounded-[14px] border border-[color:var(--panel-border)] bg-white p-5;
+  box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
+}
+
+.records-filter-row {
+  @apply grid grid-cols-6 items-start gap-2.5;
+}
+
+.records-reset-button {
+  @apply absolute right-5 top-5 inline-flex items-center border-0 bg-transparent p-1 text-xs font-extrabold text-[color:var(--accent)];
+}
+
+.records-reset-button:hover {
+  @apply text-[color:var(--accent-strong)];
+}
+
+.records-filter-workspace > .range-section {
+  @apply mb-2.5 border-0 bg-transparent p-0 shadow-none;
+}
+
+.records-filter-workspace + .records-toolbar {
+  @apply mt-0 rounded-xl;
+}
+
 .range-section {
   @apply flex items-end justify-start gap-5 rounded-xl border border-[color:var(--panel-border)] bg-white px-4 py-3.5;
   box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
 }
 
 .range-picker summary {
-  @apply h-[58px] w-[260px] rounded-[10px] border border-[color:var(--panel-border)] bg-white px-3.5 text-sm shadow-none;
+  @apply relative grid h-[58px] w-[260px] grid-cols-1 items-center gap-0 rounded-[10px] border border-[color:var(--panel-border)] bg-white px-3.5 py-2.5 pr-8 text-left text-sm shadow-none;
+}
+
+.range-picker summary .field-kicker {
+  @apply block min-w-0 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[color:var(--accent)];
+}
+
+.range-picker summary strong {
+  @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-extrabold text-[color:var(--text)];
+}
+
+.range-picker summary .chevron {
+  @apply absolute right-2.5 top-1/2 m-0 -translate-y-1/2;
 }
 
 .range-picker summary:hover,
@@ -831,8 +868,142 @@
   @apply mt-2.5 rounded-xl;
 }
 
+.records-prefilters {
+  @apply contents;
+}
+
+.records-filter-row > .range-section {
+  @apply mb-0 border-0 bg-transparent p-0 shadow-none;
+}
+
+.records-filter-row .range-picker,
+.records-filter-row .range-picker summary {
+  @apply w-full;
+}
+
+.records-filter-row .range-picker summary {
+  @apply relative grid min-h-[58px] grid-cols-1 items-center gap-0 rounded-[10px] border border-[color:var(--panel-border)] bg-white px-3.5 py-2.5 pr-8 text-left shadow-none;
+}
+
+.records-filter-row .range-picker summary .field-kicker {
+  @apply block min-w-0 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[color:var(--accent)];
+}
+
+.records-filter-row .range-picker summary strong {
+  @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-extrabold text-[color:var(--text)];
+}
+
+.records-filter-row .range-picker summary .chevron {
+  @apply absolute right-2.5 top-1/2 m-0 -translate-y-1/2;
+}
+
+.record-filter-card {
+  @apply relative min-w-0;
+}
+
+.record-filter-summary {
+  @apply relative grid min-h-[58px] w-full grid-cols-[minmax(0,1fr)_auto] items-center rounded-[10px] border border-[color:var(--panel-border)] bg-white px-3.5 py-2.5 pr-8 text-left;
+}
+
+.record-filter-summary:hover,
+.record-filter-card.is-open .record-filter-summary {
+  @apply border-[#72b8ae] bg-[#f8fffd] shadow-[0_0_0_3px_rgba(21,125,114,0.09)];
+}
+
+.record-filter-summary .field-kicker {
+  @apply col-span-2;
+}
+
+.record-filter-summary strong {
+  @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm;
+}
+
+.record-filter-chevron {
+  @apply pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[color:var(--accent)] transition-transform;
+}
+
+.record-filter-card.is-open .record-filter-chevron {
+  @apply rotate-180;
+}
+
+.record-filter-popover {
+  @apply absolute left-0 top-[calc(100%+10px)] z-20 w-[min(390px,calc(100vw-32px))] rounded-xl border border-[color:var(--panel-border)] bg-white p-4;
+  box-shadow: 0 18px 44px rgba(25, 54, 51, 0.16);
+}
+
+.record-filter-head,
+.record-filter-actions,
+.record-filter-foot {
+  @apply flex items-center gap-2;
+}
+
+.record-filter-head {
+  @apply mb-3.5 justify-between text-sm;
+}
+
+.record-filter-head button,
+.record-filter-actions button {
+  @apply border-0 bg-transparent p-0 text-xs font-extrabold text-[color:var(--accent)];
+}
+
+.record-filter-search {
+  @apply mb-3 flex h-9 items-center gap-2 rounded-lg border border-[color:var(--panel-border)] px-2.5 text-[color:var(--muted)];
+}
+
+.record-filter-search input {
+  @apply min-w-0 flex-1 border-0 bg-transparent text-sm outline-none;
+}
+
+.record-filter-actions {
+  @apply mb-2.5 text-xs text-[color:var(--muted)];
+}
+
+.record-filter-actions span {
+  @apply mr-auto;
+}
+
+.record-filter-options {
+  @apply grid max-h-[230px] gap-1 overflow-auto;
+}
+
+.record-filter-options label {
+  @apply flex min-h-12 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5;
+}
+
+.record-filter-options label:hover {
+  @apply bg-[#f3f7f6];
+}
+
+.record-filter-options input {
+  @apply accent-[color:var(--accent)];
+}
+
+.record-filter-options label > span {
+  @apply grid min-w-0 gap-0.5;
+}
+
+.record-filter-options strong {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap text-[13px];
+}
+
+.record-filter-options small {
+  @apply text-[11px] text-[color:var(--muted)];
+}
+
+.record-filter-empty {
+  @apply py-5 text-center text-xs text-[color:var(--muted)];
+}
+
+.record-filter-foot {
+  @apply mt-3.5 justify-between border-t border-[color:var(--line)] pt-3 text-[11px] text-[color:var(--muted)];
+}
+
+.record-filter-foot button {
+  @apply rounded-md border-0 bg-[color:var(--accent)] px-3 py-2 text-xs font-extrabold text-white;
+}
+
 .records-toolbar {
-  @apply items-end rounded-xl border border-[color:var(--panel-border)] bg-white px-4 py-3;
+  @apply items-end rounded-[14px] border border-[color:var(--panel-border)] bg-white px-4 py-3;
   box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
 }
 
@@ -848,8 +1019,24 @@
   @apply pb-2 text-xs;
 }
 
+.records-pagination {
+  @apply ml-auto flex items-center gap-1.5 pb-1 text-xs text-[color:var(--muted)];
+}
+
+.records-pagination button {
+  @apply inline-flex h-7 w-7 items-center justify-center rounded-md border border-[color:var(--panel-border)] bg-white p-0 text-[color:var(--text)];
+}
+
+.records-pagination button:hover:not(:disabled) {
+  @apply border-[#72b8ae] bg-[color:var(--accent-soft)] text-[color:var(--accent-strong)];
+}
+
+.records-pagination input {
+  @apply h-7 w-14 rounded-md border border-[color:var(--panel-border)] px-2 text-center text-xs;
+}
+
 .records-table-section {
-  @apply overflow-visible rounded-xl border border-[color:var(--panel-border)] bg-white;
+  @apply overflow-hidden rounded-[14px] border border-[color:var(--panel-border)] bg-white;
   box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
 }
 
@@ -859,15 +1046,15 @@
 }
 
 .data-table {
-  @apply text-[13px];
+  @apply text-xs;
 }
 
 .data-table th {
-  @apply border-b border-r border-[color:var(--line)] bg-[#f8fbfa] p-2;
+  @apply border-b border-r-0 border-[color:var(--line)] bg-white px-2.5 py-2.5;
 }
 
 .data-table td {
-  @apply border-r border-[color:var(--line)] px-3 py-3;
+  @apply border-r-0 px-2.5 py-2.5 text-xs;
 }
 
 .data-table tbody tr:hover {
@@ -875,7 +1062,7 @@
 }
 
 .data-table-sort-area {
-  @apply text-[11px] uppercase tracking-[0.04em] text-[#60726f];
+  @apply text-[11px] text-[#60726f];
 }
 
 .data-table-filter-button:hover,
@@ -910,6 +1097,26 @@
 
   .range-section {
     @apply grid items-start gap-3;
+  }
+
+  .records-filter-row {
+    @apply grid-cols-2;
+  }
+
+  .records-filter-workspace {
+    @apply p-4;
+  }
+
+  .records-reset-button {
+    @apply right-4 top-4;
+  }
+
+  .records-filter-heading {
+    @apply items-start;
+  }
+
+  .record-filter-popover {
+    @apply fixed left-4 right-4 top-[168px] w-auto;
   }
 
   .range-picker,
