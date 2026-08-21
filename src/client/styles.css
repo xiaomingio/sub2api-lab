@@ -751,15 +751,11 @@
 }
 
 .app-header {
-  @apply flex min-h-[62px] items-center justify-between gap-6 border-b border-[color:var(--line)];
+  @apply flex min-h-[62px] items-center justify-between gap-6;
 }
 
 .app-brand {
   @apply grid flex-none gap-1;
-}
-
-.app-brand h1 {
-  @apply text-2xl font-extrabold tracking-[-0.02em];
 }
 
 .app-eyebrow,
@@ -1121,7 +1117,7 @@
 }
 
 .quota-analysis-toolbar {
-  @apply rounded-[14px] border border-[color:var(--panel-border)] bg-white p-5;
+  @apply justify-start rounded-[14px] border border-[color:var(--panel-border)] bg-white p-5;
   box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
 }
 
@@ -1145,23 +1141,6 @@
   @apply bg-[color:var(--text)] text-white;
 }
 
-.quota-kpi-grid {
-  @apply grid grid-cols-4 gap-2.5;
-}
-
-.quota-kpi {
-  @apply grid gap-1.5 rounded-lg border border-[color:var(--panel-border)] bg-[#fbfdfc] p-3.5;
-}
-
-.quota-kpi span,
-.quota-kpi small {
-  @apply text-[11px] text-[color:var(--muted)];
-}
-
-.quota-kpi strong {
-  @apply text-xl tabular-nums;
-}
-
 .quota-section {
   @apply grid gap-3;
 }
@@ -1183,12 +1162,16 @@
 }
 
 .account-window-scroller {
-  @apply flex min-w-0 gap-2.5 overflow-x-auto pb-2;
+  @apply flex min-w-0 overflow-x-auto pb-2;
   scrollbar-width: thin;
 }
 
+.account-window-card + .account-window-card {
+  @apply ml-2.5;
+}
+
 .account-window-card {
-  @apply grid min-h-[108px] w-[218px] flex-none content-start gap-1.5 rounded-lg border border-[color:var(--panel-border)] bg-[#fbfdfc] px-3.5 py-2 text-left;
+  @apply grid w-[218px] flex-none content-start gap-1.5 rounded-lg border border-[color:var(--panel-border)] bg-[#fbfdfc] px-3.5 py-2 text-left;
 }
 
 .account-window-card:hover,
@@ -1217,7 +1200,7 @@
 }
 
 .account-window-meter i {
-  @apply block h-full w-0 rounded-full bg-[#b8c5c1];
+  @apply block h-full w-0 rounded-full bg-[color:var(--accent)];
 }
 
 .account-window-card dl {
@@ -1340,8 +1323,7 @@
 }
 
 @media (max-width: 1080px) {
-  .records-distribution-grid,
-  .quota-kpi-grid {
+  .records-distribution-grid {
     @apply grid-cols-2;
   }
 }
@@ -1353,7 +1335,6 @@
   }
 
   .records-distribution-grid,
-  .quota-kpi-grid,
   .account-window-summary {
     @apply grid-cols-1;
   }

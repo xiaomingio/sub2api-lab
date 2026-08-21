@@ -95,7 +95,6 @@ export function App() {
       <header className="app-header">
         <div className="app-brand">
           <span className="app-eyebrow">SUB2API LAB / ADMIN</span>
-          <h1>{tabLabels[tab]}</h1>
         </div>
         <nav className="tab-nav" aria-label="功能标签页">
           {Object.entries(tabLabels).map(([key, label]) => (
