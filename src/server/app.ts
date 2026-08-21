@@ -168,8 +168,16 @@ export function createHandlers({ config, db, clientDir }: AppOptions) {
     return getUsageRecords({ db, range, limit: query.limit, page: query.page, defaultLimit: config.maxRows, userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), models: parseQueryList(query.models), upstreamEndpoints: parseQueryList(query.upstream_endpoints), billingModes: parseQueryList(query.billing_modes), requestTypes: parseQueryList(query.request_types), apiKeyIds: parseQueryList(query.api_key_ids), upstreamModelMismatch: parseQueryList(query.upstream_model_mismatch), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) });
   }
 
-  async function usageRecordFilterOptionsApi() {
-    return getUsageRecordFilterOptions(db);
+  async function usageRecordFilterOptionsApi(request: FastifyRequest) {
+    const query = request.query as UsageQuery;
+    const range = resolveDateRange({
+      preset: query.preset,
+      startDate: query.start_date,
+      endDate: query.end_date,
+      timezone: config.timezone,
+      defaultPreset: config.defaultRange
+    });
+    return getUsageRecordFilterOptions(db, range);
   }
 
   async function usageAnalysisApi(request: FastifyRequest) {

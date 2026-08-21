@@ -4,6 +4,8 @@
  */
 
 import type { DateRange } from "../shared/ranges.js";
+import type { QueryResult } from "pg";
+import { runWithConcurrency } from "./db.js";
 import type { Db } from "./db.js";
 
 type DistributionItem = { label: string; value: number };
@@ -70,39 +72,50 @@ function buildConditions(filters: AnalysisFilters, values: unknown[]): string[] 
   const add = (items: string[] | undefined, expression: string, cast = "text") => { if (!items?.length) return; values.push(items); conditions.push(`${expression} = ANY($${values.length}::${cast}[])`); };
   add(filters.userIds, "ul.user_id", "bigint");
   add(filters.accountIds, "ul.account_id", "bigint");
-  add(filters.models, "COALESCE(NULLIF(to_jsonb(ul)->>'requested_model', ''), NULLIF(to_jsonb(ul)->>'model', ''))");
-  add(filters.upstreamEndpoints, "NULLIF(to_jsonb(ul)->>'upstream_endpoint', '')");
-  add(filters.billingModes, "NULLIF(to_jsonb(ul)->>'billing_mode', '')");
+  add(filters.models, "COALESCE(NULLIF(ul.requested_model, ''), NULLIF(ul.model, ''))");
+  add(filters.upstreamEndpoints, "NULLIF(ul.upstream_endpoint, '')");
+  add(filters.billingModes, "NULLIF(ul.billing_mode, '')");
   add(filters.requestTypes, "ul.request_type", "smallint");
   add(filters.apiKeyIds, "ul.api_key_id", "bigint");
-  add(filters.upstreamModelMismatch, "NULLIF(to_jsonb(ul)->>'upstream_model_mismatch', '')");
-  add(filters.inboundEndpoints, "COALESCE(NULLIF(to_jsonb(ul)->>'inbound_endpoint', ''), NULLIF(to_jsonb(ul)->>'endpoint', ''), NULLIF(to_jsonb(ul)->>'path', ''))");
+  add(filters.upstreamModelMismatch, "ul.upstream_model_mismatch::text");
+  add(filters.inboundEndpoints, "NULLIF(ul.inbound_endpoint, '')");
   if (filters.groupIds?.length) { values.push(filters.groupIds); conditions.push(`(ul.group_id::text = ANY($${values.length}::text[]) OR (ul.group_id IS NULL AND '__null__' = ANY($${values.length}::text[])))`); }
-  add(filters.billingTypes, "COALESCE(NULLIF(to_jsonb(ul)->>'billing_type', ''), NULLIF(to_jsonb(ul)->>'billing_mode', ''))");
+  add(filters.billingTypes, "COALESCE(NULLIF(ul.billing_type::text, ''), NULLIF(ul.billing_mode::text, ''))");
   return conditions;
 }
 
 export async function getUsageAnalysis(params: { db: Db; range: DateRange; filters?: AnalysisFilters; timezone: string; granularity: "hour" | "day" }): Promise<UsageAnalysis> {
   const values: unknown[] = [params.range.start, params.range.end];
   const conditions = buildConditions(params.filters || {}, values).join(" AND ");
-  const modelExpression = "COALESCE(NULLIF(to_jsonb(ul)->>'requested_model', ''), NULLIF(to_jsonb(ul)->>'model', ''), '未知模型')";
-  const endpointExpression = "COALESCE(NULLIF(to_jsonb(ul)->>'inbound_endpoint', ''), NULLIF(to_jsonb(ul)->>'endpoint', ''), NULLIF(to_jsonb(ul)->>'path', ''), '未知端点')";
+  const modelExpression = "COALESCE(NULLIF(ul.requested_model, ''), NULLIF(ul.model, ''), '未知模型')";
+  const endpointExpression = "COALESCE(NULLIF(ul.inbound_endpoint, ''), '未知端点')";
   const tokenExpression = "COALESCE(ul.input_tokens, 0) + COALESCE(ul.output_tokens, 0) + COALESCE(ul.cache_creation_tokens, 0) + COALESCE(ul.cache_read_tokens, 0)";
   const bucketFormat = params.granularity === "day" ? "YYYY-MM-DD" : "YYYY-MM-DD HH24:00";
   const seriesBucket = `to_char(date_trunc('${params.granularity}', ul.created_at AT TIME ZONE $${values.length + 1}), '${bucketFormat}')`;
   const baseParams = [...values, params.timezone];
   const bucketInterval = params.granularity === "day" ? "1 day" : "1 hour";
-  const [models, groups, endpoints, userDistribution, accounts, users, userSeries, buckets, series] = await Promise.all([
-    params.db.pool.query<CountRow>(`SELECT ${modelExpression} AS label, COUNT(*)::text AS value FROM usage_logs ul WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
-    params.db.pool.query<CountRow>(`SELECT COALESCE(g.name, '未分组') AS label, COUNT(*)::text AS value FROM usage_logs ul LEFT JOIN "groups" g ON g.id = ul.group_id WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
-    params.db.pool.query<CountRow>(`SELECT ${endpointExpression} AS label, COUNT(*)::text AS value FROM usage_logs ul WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
-    params.db.pool.query<CountRow>(`SELECT COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), '用户 #' || ul.user_id::text) AS label, COUNT(*)::text AS value FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC`, values),
-    params.db.pool.query<AccountRow>(`WITH usage_by_account AS (SELECT ul.account_id, SUM(${tokenExpression}) AS tokens, COALESCE(SUM(ul.actual_cost), 0) AS actual_cost, COALESCE(SUM(ul.total_cost), 0) AS standard_cost FROM usage_logs ul WHERE ${conditions} GROUP BY ul.account_id) SELECT a.id AS account_id, COALESCE(a.name, '上游账号 #' || a.id::text) AS name, COALESCE(a.platform, '') AS platform, COALESCE(u.tokens, 0)::text AS tokens, COALESCE(u.actual_cost, 0)::text AS actual_cost, COALESCE(u.standard_cost, 0)::text AS standard_cost, NULLIF(a.extra->>'codex_5h_used_percent', '') AS five_hour_used_percent, NULLIF(a.extra->>'codex_7d_used_percent', '') AS seven_day_used_percent, CASE WHEN NULLIF(a.extra->>'codex_5h_reset_at', '') IS NULL THEN NULL ELSE (a.extra->>'codex_5h_reset_at')::timestamptz - make_interval(mins => COALESCE(NULLIF(a.extra->>'codex_5h_window_minutes', '')::int, 300)) END AS five_hour_window_start, CASE WHEN NULLIF(a.extra->>'codex_7d_reset_at', '') IS NULL THEN NULL ELSE (a.extra->>'codex_7d_reset_at')::timestamptz - make_interval(mins => COALESCE(NULLIF(a.extra->>'codex_7d_window_minutes', '')::int, 10080)) END AS seven_day_window_start, NULLIF(a.extra->>'codex_5h_reset_at', '') AS five_hour_reset_at, NULLIF(a.extra->>'codex_7d_reset_at', '') AS seven_day_reset_at, NULLIF(a.extra->>'codex_usage_updated_at', '') AS usage_updated_at FROM accounts a LEFT JOIN usage_by_account u ON u.account_id = a.id WHERE a.deleted_at IS NULL ORDER BY COALESCE(u.tokens, 0) DESC, a.id`, values),
-    params.db.pool.query<UserRow>(`SELECT COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), '用户 #' || ul.user_id::text) AS label, SUM(${tokenExpression})::text AS tokens, COALESCE(SUM(ul.actual_cost), 0)::text AS actual_cost, COALESCE(SUM(ul.total_cost), 0)::text AS standard_cost FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ${conditions} GROUP BY 1 ORDER BY SUM(${tokenExpression}) DESC LIMIT 11`, values),
-    params.db.pool.query<UserSeriesRow>(`SELECT ${seriesBucket} AS bucket, ul.account_id, COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), '用户 #' || ul.user_id::text) AS label, SUM(${tokenExpression})::text AS tokens, COALESCE(SUM(ul.actual_cost), 0)::text AS actual_cost, COALESCE(SUM(ul.total_cost), 0)::text AS standard_cost FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ${conditions} GROUP BY 1, 2, 3 ORDER BY 1`, baseParams),
-    params.db.pool.query<BucketRow>(`SELECT to_char(bucket, '${bucketFormat}') AS bucket FROM generate_series(date_trunc('${params.granularity}', $1::timestamptz AT TIME ZONE $3), date_trunc('${params.granularity}', ($2::timestamptz - interval '1 microsecond') AT TIME ZONE $3), interval '${bucketInterval}') AS bucket ORDER BY bucket`, [values[0], values[1], params.timezone]),
-    params.db.pool.query<SeriesRow>(`SELECT ${seriesBucket} AS bucket, ul.account_id, ${modelExpression} AS model, token_type, SUM(tokens)::text AS tokens, COALESCE(SUM(token_actual_cost), 0)::text AS actual_cost, COALESCE(SUM(token_standard_cost), 0)::text AS standard_cost FROM (SELECT ul.*, '输入' AS token_type, COALESCE(ul.input_tokens, 0) AS tokens, COALESCE(ul.input_cost, 0) AS token_actual_cost, COALESCE(ul.input_cost, 0) AS token_standard_cost FROM usage_logs ul UNION ALL SELECT ul.*, '输出', COALESCE(ul.output_tokens, 0), COALESCE(ul.output_cost, 0), COALESCE(ul.output_cost, 0) FROM usage_logs ul UNION ALL SELECT ul.*, 'Cache Read', COALESCE(ul.cache_read_tokens, 0), COALESCE(ul.cache_read_cost, 0), COALESCE(ul.cache_read_cost, 0) FROM usage_logs ul UNION ALL SELECT ul.*, 'Cache Creation', COALESCE(ul.cache_creation_tokens, 0), COALESCE(ul.cache_creation_cost, 0), COALESCE(ul.cache_creation_cost, 0) FROM usage_logs ul) ul WHERE ${conditions} GROUP BY 1, 2, 3, token_type ORDER BY 1`, baseParams)
-  ]);
+  const queryResults = await runWithConcurrency<unknown>([
+    () => params.db.pool.query<CountRow>(`SELECT ${modelExpression} AS label, COUNT(*)::text AS value FROM usage_logs ul WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
+    () => params.db.pool.query<CountRow>(`SELECT COALESCE(g.name, '未分组') AS label, COUNT(*)::text AS value FROM usage_logs ul LEFT JOIN "groups" g ON g.id = ul.group_id WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
+    () => params.db.pool.query<CountRow>(`SELECT ${endpointExpression} AS label, COUNT(*)::text AS value FROM usage_logs ul WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
+    () => params.db.pool.query<CountRow>(`SELECT COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), '用户 #' || ul.user_id::text) AS label, COUNT(*)::text AS value FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC`, values),
+    () => params.db.pool.query<AccountRow>(`WITH usage_by_account AS (SELECT ul.account_id, SUM(${tokenExpression}) AS tokens, COALESCE(SUM(ul.actual_cost), 0) AS actual_cost, COALESCE(SUM(ul.total_cost), 0) AS standard_cost FROM usage_logs ul WHERE ${conditions} GROUP BY ul.account_id) SELECT a.id AS account_id, COALESCE(a.name, '上游账号 #' || a.id::text) AS name, COALESCE(a.platform, '') AS platform, COALESCE(u.tokens, 0)::text AS tokens, COALESCE(u.actual_cost, 0)::text AS actual_cost, COALESCE(u.standard_cost, 0)::text AS standard_cost, NULLIF(a.extra->>'codex_5h_used_percent', '') AS five_hour_used_percent, NULLIF(a.extra->>'codex_7d_used_percent', '') AS seven_day_used_percent, CASE WHEN NULLIF(a.extra->>'codex_5h_reset_at', '') IS NULL THEN NULL ELSE (a.extra->>'codex_5h_reset_at')::timestamptz - make_interval(mins => COALESCE(NULLIF(a.extra->>'codex_5h_window_minutes', '')::int, 300)) END AS five_hour_window_start, CASE WHEN NULLIF(a.extra->>'codex_7d_reset_at', '') IS NULL THEN NULL ELSE (a.extra->>'codex_7d_reset_at')::timestamptz - make_interval(mins => COALESCE(NULLIF(a.extra->>'codex_7d_window_minutes', '')::int, 10080)) END AS seven_day_window_start, NULLIF(a.extra->>'codex_5h_reset_at', '') AS five_hour_reset_at, NULLIF(a.extra->>'codex_7d_reset_at', '') AS seven_day_reset_at, NULLIF(a.extra->>'codex_usage_updated_at', '') AS usage_updated_at FROM accounts a LEFT JOIN usage_by_account u ON u.account_id = a.id WHERE a.deleted_at IS NULL ORDER BY COALESCE(u.tokens, 0) DESC, a.id`, values),
+    () => params.db.pool.query<UserRow>(`SELECT COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), '用户 #' || ul.user_id::text) AS label, SUM(${tokenExpression})::text AS tokens, COALESCE(SUM(ul.actual_cost), 0)::text AS actual_cost, COALESCE(SUM(ul.total_cost), 0)::text AS standard_cost FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ${conditions} GROUP BY 1 ORDER BY SUM(${tokenExpression}) DESC LIMIT 11`, values),
+    () => params.db.pool.query<UserSeriesRow>(`SELECT ${seriesBucket} AS bucket, ul.account_id, COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), '用户 #' || ul.user_id::text) AS label, SUM(${tokenExpression})::text AS tokens, COALESCE(SUM(ul.actual_cost), 0)::text AS actual_cost, COALESCE(SUM(ul.total_cost), 0)::text AS standard_cost FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ${conditions} GROUP BY 1, 2, 3 ORDER BY 1`, baseParams),
+    () => params.db.pool.query<BucketRow>(`SELECT to_char(bucket, '${bucketFormat}') AS bucket FROM generate_series(date_trunc('${params.granularity}', $1::timestamptz AT TIME ZONE $3), date_trunc('${params.granularity}', ($2::timestamptz - interval '1 microsecond') AT TIME ZONE $3), interval '${bucketInterval}') AS bucket ORDER BY bucket`, [values[0], values[1], params.timezone]),
+    () => params.db.pool.query<SeriesRow>(`SELECT ${seriesBucket} AS bucket, ul.account_id, ${modelExpression} AS model, token_type, SUM(tokens)::text AS tokens, COALESCE(SUM(token_actual_cost), 0)::text AS actual_cost, COALESCE(SUM(token_standard_cost), 0)::text AS standard_cost FROM usage_logs ul CROSS JOIN LATERAL (VALUES ('输入', COALESCE(ul.input_tokens, 0), COALESCE(ul.input_cost, 0), COALESCE(ul.input_cost, 0)), ('输出', COALESCE(ul.output_tokens, 0), COALESCE(ul.output_cost, 0), COALESCE(ul.output_cost, 0)), ('Cache Read', COALESCE(ul.cache_read_tokens, 0), COALESCE(ul.cache_read_cost, 0), COALESCE(ul.cache_read_cost, 0)), ('Cache Creation', COALESCE(ul.cache_creation_tokens, 0), COALESCE(ul.cache_creation_cost, 0), COALESCE(ul.cache_creation_cost, 0))) AS token(token_type, tokens, token_actual_cost, token_standard_cost) WHERE ${conditions} GROUP BY 1, 2, 3, token_type ORDER BY 1`, baseParams)
+  ], 3);
+  const [models, groups, endpoints, userDistribution, accounts, users, userSeries, buckets, series] = queryResults as [
+    QueryResult<CountRow>,
+    QueryResult<CountRow>,
+    QueryResult<CountRow>,
+    QueryResult<CountRow>,
+    QueryResult<AccountRow>,
+    QueryResult<UserRow>,
+    QueryResult<UserSeriesRow>,
+    QueryResult<BucketRow>,
+    QueryResult<SeriesRow>
+  ];
   return {
     range: { preset: params.range.preset, label: params.range.label, start: params.range.start.toISOString(), end: params.range.end.toISOString(), startDate: params.range.startDate, endDate: params.range.endDate },
     records: { model: top(models.rows), group: top(groups.rows), endpoint: top(endpoints.rows), user: topWithOther(userDistribution.rows) },

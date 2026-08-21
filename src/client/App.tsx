@@ -76,10 +76,10 @@ export function App() {
   useEffect(() => {
     if (tab !== "records") return;
     setRecordFilterOptions(null);
-    void fetchUsageRecordFilterOptions()
+    void fetchUsageRecordFilterOptions(recordsQuery)
       .then(setRecordFilterOptions)
       .catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : "加载筛选选项失败。"));
-  }, [tab]);
+  }, [recordsQuery, tab]);
 
   useEffect(() => {
     if (tab !== "records") return;

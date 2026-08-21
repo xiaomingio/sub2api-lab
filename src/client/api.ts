@@ -97,8 +97,13 @@ export async function fetchUsageRecords(query: UsageQuery, limit: number, page: 
   return parseJsonResponse<UsageRecordsData>(response);
 }
 
-export async function fetchUsageRecordFilterOptions(): Promise<UsageRecordFilterOptions> {
-  const response = await fetch(`${apiPath("api/usage-record-filter-options")}`, { credentials: "same-origin" });
+export async function fetchUsageRecordFilterOptions(query: UsageQuery): Promise<UsageRecordFilterOptions> {
+  const params = new URLSearchParams();
+  if (query.preset) params.set("preset", query.preset);
+  if (query.startDate) params.set("start_date", query.startDate);
+  if (query.endDate) params.set("end_date", query.endDate);
+  const search = params.toString();
+  const response = await fetch(`${apiPath("api/usage-record-filter-options")}${search ? `?${search}` : ""}`, { credentials: "same-origin" });
   return parseJsonResponse<UsageRecordFilterOptions>(response);
 }
 

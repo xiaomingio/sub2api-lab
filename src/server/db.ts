@@ -10,6 +10,23 @@ type Db = {
   hasImageOutputTokens: boolean;
 };
 
+export async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, concurrency: number): Promise<T[]> {
+  const results = new Array<T>(tasks.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, concurrency), tasks.length);
+
+  async function worker(): Promise<void> {
+    while (nextIndex < tasks.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await tasks[index]!();
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
 function shouldUseSsl(databaseUrl: string): boolean {
   const sslmode = new URL(databaseUrl).searchParams.get("sslmode");
   return Boolean(sslmode && sslmode !== "disable");
