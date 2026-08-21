@@ -19,9 +19,9 @@ export async function createDb(config: AppConfig): Promise<Db> {
   const pool = new pg.Pool({
     connectionString: config.databaseUrl,
     ssl: shouldUseSsl(config.databaseUrl) ? { rejectUnauthorized: false } : false,
-    max: 5,
+    max: 20,
     idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000
+    connectionTimeoutMillis: 30_000
   });
 
   const result = await pool.query<{ exists: boolean }>(

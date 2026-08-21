@@ -61,14 +61,23 @@ function usageRecordsSearch(query: UsageQuery, limit: number, page: number): str
   return params.toString();
 }
 
-async function parseJsonResponse<T>(response: Response): Promise<T> {
+export async function parseJsonResponse<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => ({}));
   if (response.status === 401) {
     const next = `${window.location.pathname}${window.location.search}`;
     window.location.assign(`login?next=${encodeURIComponent(next)}`);
   }
   if (!response.ok) {
-    const message = typeof payload.error === "string" ? payload.error : `请求失败，HTTP ${response.status}`;
+    console.error("API request failed", {
+      url: response.url,
+      status: response.status,
+      payload
+    });
+    const message = typeof payload.message === "string"
+      ? payload.message
+      : typeof payload.error === "string"
+        ? payload.error
+        : `请求失败，HTTP ${response.status}`;
     throw new Error(message);
   }
   return payload as T;

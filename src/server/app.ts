@@ -61,6 +61,23 @@ function pathFor(basePath: string, suffix: string): string {
   return `${basePath}${suffix}` || "/";
 }
 
+function isApiRequest(request: FastifyRequest, basePath: string): boolean {
+  const requestPath = request.url.split("?", 1)[0];
+  return requestPath.startsWith("/api/") || Boolean(basePath && requestPath.startsWith(`${basePath}/api/`));
+}
+
+function errorStatusCode(error: unknown): number {
+  if (typeof error !== "object" || error === null || !("statusCode" in error)) {
+    return 500;
+  }
+  const statusCode = error.statusCode;
+  return typeof statusCode === "number" && statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message ? error.message : "服务器处理请求时发生未知错误";
+}
+
 function parseBodyUserIds(value: unknown): number[] | null {
   if (!Array.isArray(value)) return null;
   const ids = value.map((raw) => Number(raw));
@@ -199,6 +216,17 @@ type RouteHandlers = ReturnType<typeof createHandlers>;
 
 export function createApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: true });
+  app.setErrorHandler((error, request, reply) => {
+    const statusCode = errorStatusCode(error);
+    request.log.error({ err: error }, "HTTP request failed");
+    if (isApiRequest(request, options.config.basePath)) {
+      return reply.code(statusCode).send({
+        error: statusCode >= 500 ? "Internal Server Error" : error instanceof Error ? error.name : "Bad Request",
+        message: errorMessage(error)
+      });
+    }
+    return reply.send(error);
+  });
   app.register(fastifyStatic, {
     root: path.join(options.clientDir, "assets"),
     prefix: pathFor(options.config.basePath, "/assets/")
