@@ -7,10 +7,10 @@ import type { DateRange } from "../shared/ranges.js";
 import type { Db } from "./db.js";
 
 type DistributionItem = { label: string; value: number };
-type AnalysisFilters = { userIds?: string[]; accountIds?: string[]; inboundEndpoints?: string[]; groupIds?: string[]; billingTypes?: string[] };
+type AnalysisFilters = { userIds?: string[]; accountIds?: string[]; models?: string[]; upstreamEndpoints?: string[]; billingModes?: string[]; requestTypes?: string[]; apiKeyIds?: string[]; upstreamModelMismatch?: string[]; inboundEndpoints?: string[]; groupIds?: string[]; billingTypes?: string[] };
 type UsageAnalysis = {
   range: { preset: DateRange["preset"]; label: string; start: string; end: string; startDate: string; endDate: string };
-  records: { model: DistributionItem[]; group: DistributionItem[]; endpoint: DistributionItem[]; billing: DistributionItem[] };
+  records: { model: DistributionItem[]; group: DistributionItem[]; endpoint: DistributionItem[]; user: DistributionItem[] };
   quota: {
     accounts: Array<{
       accountId: number;
@@ -58,12 +58,24 @@ type SeriesRow = { bucket: string; account_id: number | string | null; model: st
 function number(value: unknown): number { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0; }
 function label(value: unknown, fallback: string): string { const text = String(value || "").trim(); return text || fallback; }
 function top(rows: CountRow[], limit = 10): DistributionItem[] { return rows.slice(0, limit).map((row) => ({ label: label(row.label, "未标记"), value: number(row.value) })); }
+function topWithOther(rows: CountRow[], limit = 10): DistributionItem[] {
+  const items = rows.map((row) => ({ label: label(row.label, "未标记"), value: number(row.value) }));
+  const leading = items.slice(0, limit);
+  const other = items.slice(limit).reduce((sum, item) => sum + item.value, 0);
+  return other > 0 ? [...leading, { label: "其他", value: other }] : leading;
+}
 
 function buildConditions(filters: AnalysisFilters, values: unknown[]): string[] {
   const conditions = ["ul.created_at >= $1", "ul.created_at < $2"];
   const add = (items: string[] | undefined, expression: string, cast = "text") => { if (!items?.length) return; values.push(items); conditions.push(`${expression} = ANY($${values.length}::${cast}[])`); };
   add(filters.userIds, "ul.user_id", "bigint");
   add(filters.accountIds, "ul.account_id", "bigint");
+  add(filters.models, "COALESCE(NULLIF(to_jsonb(ul)->>'requested_model', ''), NULLIF(to_jsonb(ul)->>'model', ''))");
+  add(filters.upstreamEndpoints, "NULLIF(to_jsonb(ul)->>'upstream_endpoint', '')");
+  add(filters.billingModes, "NULLIF(to_jsonb(ul)->>'billing_mode', '')");
+  add(filters.requestTypes, "ul.request_type", "smallint");
+  add(filters.apiKeyIds, "ul.api_key_id", "bigint");
+  add(filters.upstreamModelMismatch, "NULLIF(to_jsonb(ul)->>'upstream_model_mismatch', '')");
   add(filters.inboundEndpoints, "COALESCE(NULLIF(to_jsonb(ul)->>'inbound_endpoint', ''), NULLIF(to_jsonb(ul)->>'endpoint', ''), NULLIF(to_jsonb(ul)->>'path', ''))");
   if (filters.groupIds?.length) { values.push(filters.groupIds); conditions.push(`(ul.group_id::text = ANY($${values.length}::text[]) OR (ul.group_id IS NULL AND '__null__' = ANY($${values.length}::text[])))`); }
   add(filters.billingTypes, "COALESCE(NULLIF(to_jsonb(ul)->>'billing_type', ''), NULLIF(to_jsonb(ul)->>'billing_mode', ''))");
@@ -75,26 +87,25 @@ export async function getUsageAnalysis(params: { db: Db; range: DateRange; filte
   const conditions = buildConditions(params.filters || {}, values).join(" AND ");
   const modelExpression = "COALESCE(NULLIF(to_jsonb(ul)->>'requested_model', ''), NULLIF(to_jsonb(ul)->>'model', ''), '未知模型')";
   const endpointExpression = "COALESCE(NULLIF(to_jsonb(ul)->>'inbound_endpoint', ''), NULLIF(to_jsonb(ul)->>'endpoint', ''), NULLIF(to_jsonb(ul)->>'path', ''), '未知端点')";
-  const billingExpression = "COALESCE(NULLIF(to_jsonb(ul)->>'billing_type', ''), NULLIF(to_jsonb(ul)->>'billing_mode', ''), '未知类型')";
   const tokenExpression = "COALESCE(ul.input_tokens, 0) + COALESCE(ul.output_tokens, 0) + COALESCE(ul.cache_creation_tokens, 0) + COALESCE(ul.cache_read_tokens, 0)";
   const bucketFormat = params.granularity === "day" ? "YYYY-MM-DD" : "YYYY-MM-DD HH24:00";
   const seriesBucket = `to_char(date_trunc('${params.granularity}', ul.created_at AT TIME ZONE $${values.length + 1}), '${bucketFormat}')`;
   const baseParams = [...values, params.timezone];
   const bucketInterval = params.granularity === "day" ? "1 day" : "1 hour";
-  const [models, groups, endpoints, billing, accounts, users, userSeries, buckets, series] = await Promise.all([
+  const [models, groups, endpoints, userDistribution, accounts, users, userSeries, buckets, series] = await Promise.all([
     params.db.pool.query<CountRow>(`SELECT ${modelExpression} AS label, COUNT(*)::text AS value FROM usage_logs ul WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
     params.db.pool.query<CountRow>(`SELECT COALESCE(g.name, '未分组') AS label, COUNT(*)::text AS value FROM usage_logs ul LEFT JOIN "groups" g ON g.id = ul.group_id WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
     params.db.pool.query<CountRow>(`SELECT ${endpointExpression} AS label, COUNT(*)::text AS value FROM usage_logs ul WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
-    params.db.pool.query<CountRow>(`SELECT ${billingExpression} AS label, COUNT(*)::text AS value FROM usage_logs ul WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 12`, values),
+    params.db.pool.query<CountRow>(`SELECT COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), '用户 #' || ul.user_id::text) AS label, COUNT(*)::text AS value FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ${conditions} GROUP BY 1 ORDER BY COUNT(*) DESC`, values),
     params.db.pool.query<AccountRow>(`WITH usage_by_account AS (SELECT ul.account_id, SUM(${tokenExpression}) AS tokens, COALESCE(SUM(ul.actual_cost), 0) AS actual_cost, COALESCE(SUM(ul.total_cost), 0) AS standard_cost FROM usage_logs ul WHERE ${conditions} GROUP BY ul.account_id) SELECT a.id AS account_id, COALESCE(a.name, '上游账号 #' || a.id::text) AS name, COALESCE(a.platform, '') AS platform, COALESCE(u.tokens, 0)::text AS tokens, COALESCE(u.actual_cost, 0)::text AS actual_cost, COALESCE(u.standard_cost, 0)::text AS standard_cost, NULLIF(a.extra->>'codex_5h_used_percent', '') AS five_hour_used_percent, NULLIF(a.extra->>'codex_7d_used_percent', '') AS seven_day_used_percent, CASE WHEN NULLIF(a.extra->>'codex_5h_reset_at', '') IS NULL THEN NULL ELSE (a.extra->>'codex_5h_reset_at')::timestamptz - make_interval(mins => COALESCE(NULLIF(a.extra->>'codex_5h_window_minutes', '')::int, 300)) END AS five_hour_window_start, CASE WHEN NULLIF(a.extra->>'codex_7d_reset_at', '') IS NULL THEN NULL ELSE (a.extra->>'codex_7d_reset_at')::timestamptz - make_interval(mins => COALESCE(NULLIF(a.extra->>'codex_7d_window_minutes', '')::int, 10080)) END AS seven_day_window_start, NULLIF(a.extra->>'codex_5h_reset_at', '') AS five_hour_reset_at, NULLIF(a.extra->>'codex_7d_reset_at', '') AS seven_day_reset_at, NULLIF(a.extra->>'codex_usage_updated_at', '') AS usage_updated_at FROM accounts a LEFT JOIN usage_by_account u ON u.account_id = a.id WHERE a.deleted_at IS NULL ORDER BY COALESCE(u.tokens, 0) DESC, a.id`, values),
     params.db.pool.query<UserRow>(`SELECT COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), '用户 #' || ul.user_id::text) AS label, SUM(${tokenExpression})::text AS tokens, COALESCE(SUM(ul.actual_cost), 0)::text AS actual_cost, COALESCE(SUM(ul.total_cost), 0)::text AS standard_cost FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ${conditions} GROUP BY 1 ORDER BY SUM(${tokenExpression}) DESC LIMIT 11`, values),
     params.db.pool.query<UserSeriesRow>(`SELECT ${seriesBucket} AS bucket, ul.account_id, COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), '用户 #' || ul.user_id::text) AS label, SUM(${tokenExpression})::text AS tokens, COALESCE(SUM(ul.actual_cost), 0)::text AS actual_cost, COALESCE(SUM(ul.total_cost), 0)::text AS standard_cost FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ${conditions} GROUP BY 1, 2, 3 ORDER BY 1`, baseParams),
-    params.db.pool.query<BucketRow>(`SELECT to_char(bucket, '${bucketFormat}') AS bucket FROM generate_series(date_trunc('${params.granularity}', $1::timestamptz AT TIME ZONE $3), date_trunc('${params.granularity}', ($2::timestamptz - interval '1 microsecond') AT TIME ZONE $3), interval '${bucketInterval}') AS bucket ORDER BY bucket`, baseParams),
+    params.db.pool.query<BucketRow>(`SELECT to_char(bucket, '${bucketFormat}') AS bucket FROM generate_series(date_trunc('${params.granularity}', $1::timestamptz AT TIME ZONE $3), date_trunc('${params.granularity}', ($2::timestamptz - interval '1 microsecond') AT TIME ZONE $3), interval '${bucketInterval}') AS bucket ORDER BY bucket`, [values[0], values[1], params.timezone]),
     params.db.pool.query<SeriesRow>(`SELECT ${seriesBucket} AS bucket, ul.account_id, ${modelExpression} AS model, token_type, SUM(tokens)::text AS tokens, COALESCE(SUM(token_actual_cost), 0)::text AS actual_cost, COALESCE(SUM(token_standard_cost), 0)::text AS standard_cost FROM (SELECT ul.*, '输入' AS token_type, COALESCE(ul.input_tokens, 0) AS tokens, COALESCE(ul.input_cost, 0) AS token_actual_cost, COALESCE(ul.input_cost, 0) AS token_standard_cost FROM usage_logs ul UNION ALL SELECT ul.*, '输出', COALESCE(ul.output_tokens, 0), COALESCE(ul.output_cost, 0), COALESCE(ul.output_cost, 0) FROM usage_logs ul UNION ALL SELECT ul.*, 'Cache Read', COALESCE(ul.cache_read_tokens, 0), COALESCE(ul.cache_read_cost, 0), COALESCE(ul.cache_read_cost, 0) FROM usage_logs ul UNION ALL SELECT ul.*, 'Cache Creation', COALESCE(ul.cache_creation_tokens, 0), COALESCE(ul.cache_creation_cost, 0), COALESCE(ul.cache_creation_cost, 0) FROM usage_logs ul) ul WHERE ${conditions} GROUP BY 1, 2, 3, token_type ORDER BY 1`, baseParams)
   ]);
   return {
     range: { preset: params.range.preset, label: params.range.label, start: params.range.start.toISOString(), end: params.range.end.toISOString(), startDate: params.range.startDate, endDate: params.range.endDate },
-    records: { model: top(models.rows), group: top(groups.rows), endpoint: top(endpoints.rows), billing: top(billing.rows) },
+    records: { model: top(models.rows), group: top(groups.rows), endpoint: top(endpoints.rows), user: topWithOther(userDistribution.rows) },
     quota: {
       accounts: accounts.rows.map((row) => ({
         accountId: number(row.account_id),

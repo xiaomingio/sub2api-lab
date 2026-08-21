@@ -88,6 +88,12 @@ type UsageQuery = {
   allocationEndAt?: string;
   recordUserIds?: number[];
   recordAccountIds?: number[];
+  recordModels?: string[];
+  recordUpstreamEndpoints?: string[];
+  recordBillingModes?: string[];
+  recordRequestTypes?: number[];
+  recordApiKeyIds?: number[];
+  recordUpstreamModelMismatch?: boolean[];
   recordInboundEndpoints?: string[];
   recordGroupIds?: string[];
   recordBillingTypes?: string[];
@@ -107,6 +113,12 @@ type UsageRecordFilterOption = { value: string; label: string; hint?: string };
 type UsageRecordFilterOptions = {
   users: UsageRecordFilterOption[];
   accounts: UsageRecordFilterOption[];
+  models: UsageRecordFilterOption[];
+  upstreamEndpoints: UsageRecordFilterOption[];
+  billingModes: UsageRecordFilterOption[];
+  requestTypes: UsageRecordFilterOption[];
+  apiKeys: UsageRecordFilterOption[];
+  upstreamModelMismatch: UsageRecordFilterOption[];
   inboundEndpoints: UsageRecordFilterOption[];
   groups: UsageRecordFilterOption[];
   billingTypes: UsageRecordFilterOption[];
@@ -115,7 +127,7 @@ type UsageRecordFilterOptions = {
 type DistributionItem = { label: string; value: number };
 type UsageAnalysisData = {
   range: SerializedDateRange;
-  records: { model: DistributionItem[]; group: DistributionItem[]; endpoint: DistributionItem[]; billing: DistributionItem[] };
+  records: { model: DistributionItem[]; group: DistributionItem[]; endpoint: DistributionItem[]; user: DistributionItem[] };
   quota: {
     accounts: Array<{
       accountId: number;

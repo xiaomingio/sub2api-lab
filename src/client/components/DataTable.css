@@ -141,11 +141,11 @@
 }
 
 .records-table-section .data-table th {
-  @apply bg-white px-2 py-2;
+  @apply bg-white px-2.5 py-2.5;
 }
 
 .records-table-section .data-table td {
-  @apply px-2 py-2.5 text-xs;
+  @apply px-2.5 py-3 text-xs;
 }
 
 .records-table-section .data-table-heading,

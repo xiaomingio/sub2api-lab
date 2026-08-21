@@ -4,20 +4,22 @@
  */
 
 import { billingTypeLabel } from "../shared/billing-type.js";
+import { billingModeLabel } from "../shared/billing-mode.js";
+import { requestTypeLabel } from "../shared/request-type.js";
 import type { DateRange } from "../shared/ranges.js";
 import type { Db } from "./db.js";
 
 type UsageRecord = Record<string, unknown>;
 type FilterOption = { value: string; label: string; hint?: string };
-type FilterOptions = { users: FilterOption[]; accounts: FilterOption[]; inboundEndpoints: FilterOption[]; groups: FilterOption[]; billingTypes: FilterOption[] };
+type FilterOptions = { users: FilterOption[]; accounts: FilterOption[]; models: FilterOption[]; upstreamEndpoints: FilterOption[]; billingModes: FilterOption[]; requestTypes: FilterOption[]; apiKeys: FilterOption[]; upstreamModelMismatch: FilterOption[]; inboundEndpoints: FilterOption[]; groups: FilterOption[]; billingTypes: FilterOption[] };
 
-const hiddenRawIdentityColumns = new Set(["user_id", "api_key_id", "account_id", "group_id", "billing_mode"]);
+const hiddenRawIdentityColumns = new Set(["user_id", "api_key_id", "account_id", "group_id"]);
 const recordDisplayColumns: Array<{ key: string; source: string[] }> = [
   { key: "created_at", source: ["created_at"] },
   { key: "user", source: ["user_id"] }, { key: "api_key", source: ["api_key_id"] }, { key: "account", source: ["account_id"] },
   { key: "model", source: ["model", "requested_model"] }, { key: "inbound_endpoint", source: ["inbound_endpoint", "endpoint", "path"] },
   { key: "upstream_endpoint", source: ["upstream_endpoint"] }, { key: "group", source: ["group_id"] }, { key: "request_type", source: ["request_type"] },
-  { key: "stream", source: ["stream"] }, { key: "is_stream", source: ["is_stream"] }, { key: "billing_type", source: ["billing_type", "billing_mode"] },
+  { key: "stream", source: ["stream"] }, { key: "is_stream", source: ["is_stream"] }, { key: "billing_mode", source: ["billing_mode"] }, { key: "billing_type", source: ["billing_type", "billing_mode"] },
   { key: "input_tokens", source: ["input_tokens"] }, { key: "output_tokens", source: ["output_tokens"] }, { key: "cache_read_tokens", source: ["cache_read_tokens"] },
   { key: "cache_creation_tokens", source: ["cache_creation_tokens"] }, { key: "input_cost", source: ["input_cost"] }, { key: "output_cost", source: ["output_cost"] },
   { key: "cache_read_cost", source: ["cache_read_cost"] }, { key: "cache_creation_cost", source: ["cache_creation_cost"] }, { key: "total_cost", source: ["total_cost"] },
@@ -41,14 +43,22 @@ function optionRows(rows: Array<{ value: string | null; label: string | null; hi
 
 async function getFilterOptions(db: Db, hasBillingType: boolean): Promise<FilterOptions> {
   const billingExpression = hasBillingType ? "to_jsonb(ul)->>'billing_type'" : "to_jsonb(ul)->>'billing_mode'";
-  const [users, accounts, endpoints, groups, billingTypes] = await Promise.all([
+  const modelExpression = "COALESCE(NULLIF(to_jsonb(ul)->>'requested_model', ''), NULLIF(to_jsonb(ul)->>'model', ''))";
+  const upstreamEndpointExpression = "NULLIF(to_jsonb(ul)->>'upstream_endpoint', '')";
+  const billingModeExpression = "NULLIF(to_jsonb(ul)->>'billing_mode', '')";
+  const [users, accounts, models, upstreamEndpoints, billingModes, requestTypes, apiKeys, endpoints, groups, billingTypes] = await Promise.all([
     db.pool.query<{ value: string; label: string; hint: string }>(`SELECT DISTINCT ul.user_id::text AS value, COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), CONCAT('用户 #', ul.user_id)) AS label, CONCAT('用户 #', ul.user_id) AS hint FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id WHERE ul.user_id IS NOT NULL ORDER BY label`),
     db.pool.query<{ value: string; label: string; hint: string }>(`SELECT DISTINCT ul.account_id::text AS value, COALESCE(NULLIF(a.name, ''), CONCAT('上游账号 #', ul.account_id)) AS label, CONCAT('账号 #', ul.account_id) AS hint FROM usage_logs ul LEFT JOIN accounts a ON a.id = ul.account_id WHERE ul.account_id IS NOT NULL ORDER BY label`),
+    db.pool.query<{ value: string; label: string }>(`SELECT DISTINCT ${modelExpression} AS value, ${modelExpression} AS label FROM usage_logs ul WHERE ${modelExpression} IS NOT NULL ORDER BY label`),
+    db.pool.query<{ value: string; label: string }>(`SELECT DISTINCT ${upstreamEndpointExpression} AS value, ${upstreamEndpointExpression} AS label FROM usage_logs ul WHERE ${upstreamEndpointExpression} IS NOT NULL ORDER BY label`),
+    db.pool.query<{ value: string; label: string }>(`SELECT DISTINCT ${billingModeExpression} AS value, ${billingModeExpression} AS label FROM usage_logs ul WHERE ${billingModeExpression} IS NOT NULL ORDER BY label`),
+    db.pool.query<{ value: string; label: string }>(`SELECT DISTINCT ul.request_type::text AS value, ul.request_type::text AS label FROM usage_logs ul WHERE ul.request_type IS NOT NULL ORDER BY label`),
+    db.pool.query<{ value: string; label: string; hint: string }>(`SELECT DISTINCT ul.api_key_id::text AS value, COALESCE(NULLIF(ak.name, ''), CONCAT('API Key #', ul.api_key_id)) AS label, CONCAT('API Key #', ul.api_key_id) AS hint FROM usage_logs ul LEFT JOIN api_keys ak ON ak.id = ul.api_key_id WHERE ul.api_key_id IS NOT NULL ORDER BY label`),
     db.pool.query<{ value: string; label: string }>(`SELECT DISTINCT COALESCE(NULLIF(to_jsonb(ul)->>'inbound_endpoint', ''), NULLIF(to_jsonb(ul)->>'endpoint', ''), NULLIF(to_jsonb(ul)->>'path', '')) AS value, COALESCE(NULLIF(to_jsonb(ul)->>'inbound_endpoint', ''), NULLIF(to_jsonb(ul)->>'endpoint', ''), NULLIF(to_jsonb(ul)->>'path', '')) AS label FROM usage_logs ul WHERE COALESCE(NULLIF(to_jsonb(ul)->>'inbound_endpoint', ''), NULLIF(to_jsonb(ul)->>'endpoint', ''), NULLIF(to_jsonb(ul)->>'path', '')) IS NOT NULL ORDER BY label`),
     db.pool.query<{ value: string; label: string; hint: string }>(`SELECT DISTINCT COALESCE(ul.group_id::text, '__null__') AS value, CASE WHEN ul.group_id IS NULL THEN '未分组' ELSE COALESCE(NULLIF(g.name, ''), CONCAT('分组 #', ul.group_id)) END AS label, CASE WHEN ul.group_id IS NULL THEN 'group_id = NULL' ELSE CONCAT('分组 #', ul.group_id) END AS hint FROM usage_logs ul LEFT JOIN "groups" g ON g.id = ul.group_id ORDER BY label`),
     db.pool.query<{ value: string; label: string }>(`SELECT DISTINCT ${billingExpression} AS value, ${billingExpression} AS label FROM usage_logs ul WHERE ${billingExpression} IS NOT NULL ORDER BY value`)
   ]);
-  return { users: optionRows(users.rows), accounts: optionRows(accounts.rows), inboundEndpoints: optionRows(endpoints.rows), groups: optionRows(groups.rows), billingTypes: billingTypes.rows.map((row) => ({ value: row.value, label: billingTypeLabel(row.value), hint: row.value })) };
+  return { users: optionRows(users.rows), accounts: optionRows(accounts.rows), models: optionRows(models.rows), upstreamEndpoints: optionRows(upstreamEndpoints.rows), billingModes: billingModes.rows.map((row) => ({ value: row.value, label: billingModeLabel(row.value), hint: row.value })), requestTypes: requestTypes.rows.map((row) => ({ value: row.value, label: requestTypeLabel(row.value) || row.value, hint: row.value })), apiKeys: optionRows(apiKeys.rows), upstreamModelMismatch: [{ value: "true", label: "模型不匹配" }, { value: "false", label: "模型匹配" }], inboundEndpoints: optionRows(endpoints.rows), groups: optionRows(groups.rows), billingTypes: billingTypes.rows.map((row) => ({ value: row.value, label: billingTypeLabel(row.value), hint: row.value })) };
 }
 
 export async function getUsageRecordFilterOptions(db: Db): Promise<FilterOptions> {
@@ -56,16 +66,26 @@ export async function getUsageRecordFilterOptions(db: Db): Promise<FilterOptions
   return getFilterOptions(db, columnsResult.rows.some((row) => row.column_name === "billing_type"));
 }
 
-export async function getUsageRecords(params: { db: Db; range: DateRange; limit?: string; page?: string; defaultLimit: number; userIds?: string[]; accountIds?: string[]; inboundEndpoints?: string[]; groupIds?: string[]; billingTypes?: string[] }): Promise<{ columns: string[]; rows: UsageRecord[]; total: number; limit: number; page: number; pageCount: number; range: DateRange }> {
+export async function getUsageRecords(params: { db: Db; range: DateRange; limit?: string; page?: string; defaultLimit: number; userIds?: string[]; accountIds?: string[]; models?: string[]; upstreamEndpoints?: string[]; billingModes?: string[]; requestTypes?: string[]; apiKeyIds?: string[]; upstreamModelMismatch?: string[]; inboundEndpoints?: string[]; groupIds?: string[]; billingTypes?: string[] }): Promise<{ columns: string[]; rows: UsageRecord[]; total: number; limit: number; page: number; pageCount: number; range: DateRange }> {
   const columnsResult = await params.db.pool.query<{ column_name: string }>(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'usage_logs' ORDER BY ordinal_position`);
   const discoveredColumns = columnsResult.rows.map((row) => row.column_name);
   const columns = orderRecordColumns(discoveredColumns);
   const hasBillingType = discoveredColumns.includes("billing_type");
   const billingExpression = hasBillingType ? "to_jsonb(ul)->>'billing_type'" : "to_jsonb(ul)->>'billing_mode'";
+  const modelExpression = "COALESCE(NULLIF(to_jsonb(ul)->>'requested_model', ''), NULLIF(to_jsonb(ul)->>'model', ''))";
+  const upstreamEndpointExpression = "NULLIF(to_jsonb(ul)->>'upstream_endpoint', '')";
+  const billingModeExpression = "NULLIF(to_jsonb(ul)->>'billing_mode', '')";
+  const upstreamModelMismatchExpression = "NULLIF(to_jsonb(ul)->>'upstream_model_mismatch', '')";
   const values: unknown[] = [params.range.start, params.range.end];
   const conditions = ["ul.created_at >= $1", "ul.created_at < $2"];
   const addArrayFilter = (filterValues: string[] | undefined, expression: string, cast = "text") => { if (!filterValues?.length) return; values.push(filterValues); conditions.push(`${expression} = ANY($${values.length}::${cast}[])`); };
   addArrayFilter(params.userIds, "ul.user_id", "bigint"); addArrayFilter(params.accountIds, "ul.account_id", "bigint");
+  addArrayFilter(params.models, modelExpression);
+  addArrayFilter(params.upstreamEndpoints, upstreamEndpointExpression);
+  addArrayFilter(params.billingModes, billingModeExpression);
+  addArrayFilter(params.requestTypes, "ul.request_type", "smallint");
+  addArrayFilter(params.apiKeyIds, "ul.api_key_id", "bigint");
+  addArrayFilter(params.upstreamModelMismatch, upstreamModelMismatchExpression);
   addArrayFilter(params.inboundEndpoints, "COALESCE(NULLIF(to_jsonb(ul)->>'inbound_endpoint', ''), NULLIF(to_jsonb(ul)->>'endpoint', ''), NULLIF(to_jsonb(ul)->>'path', ''))");
   if (params.groupIds?.length) { values.push(params.groupIds); conditions.push(`(ul.group_id::text = ANY($${values.length}::text[]) OR (ul.group_id IS NULL AND '__null__' = ANY($${values.length}::text[])))`); }
   addArrayFilter(params.billingTypes, billingExpression);

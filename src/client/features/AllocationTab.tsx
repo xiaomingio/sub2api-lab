@@ -1,5 +1,5 @@
 /*
- * 文件说明: 成本分摊工作区，负责统计口径、账号选择和分摊结果展示。
+ * 文件说明: 成本分摊工作区，负责统计口径、用户选择和分摊结果展示。
  */
 
 import { useMemo, useState } from "react";
@@ -171,7 +171,7 @@ export function AllocationTab(props: {
       return [
         {
           key: "user",
-          label: "账号",
+          label: "用户",
           render: (row) => (
             <div className="user-cell">
               <span>{accountName(row)}</span>
@@ -188,7 +188,7 @@ export function AllocationTab(props: {
     return [
       {
         key: "user",
-        label: "账号",
+        label: "用户",
         render: (row) => (
           <div className="user-cell">
             <span>{accountName(row)}</span>
@@ -264,9 +264,10 @@ export function AllocationTab(props: {
   }
 
   return (
-    <section className="tab-panel is-active allocation-panel" aria-label="成本分摊">
-      <div className="tool-panel">
-        <div className="form-grid allocation-form-grid">
+    <>
+      <section className="card tool-panel" aria-label="成本分摊设置">
+        <div className="card-body">
+          <div className="form-grid allocation-form-grid">
           <div className="form-field">
             <span className="field-label-row">
               <span>统计口径</span>
@@ -282,7 +283,7 @@ export function AllocationTab(props: {
                 i
               </span>
             </span>
-            <div className="currency-tabs" role="tablist" aria-label="统计口径">
+            <div className="segmented-control" role="tablist" aria-label="统计口径">
               {allocationBasisOptions.map((option) => (
                 <button
                   className={allocationBasis === option.value ? "is-active" : ""}
@@ -306,7 +307,7 @@ export function AllocationTab(props: {
                 inputMode="decimal"
                 onChange={(event) => setActualCost(event.target.value)}
               />
-              <div className="currency-tabs" role="tablist" aria-label="实际采购成本币种">
+              <div className="segmented-control" role="tablist" aria-label="实际采购成本币种">
                 {actualCostCurrencies.map((currency) => (
                   <button
                     className={actualCostCurrency === currency.value ? "is-active" : ""}
@@ -386,20 +387,21 @@ export function AllocationTab(props: {
               </div>
             </>
           ) : null}
+          </div>
         </div>
-      </div>
+      </section>
 
       <MetricGrid
         metrics={[
-          { label: "参与账号", value: formatInteger(summary.accounts) },
+          { label: "参与用户", value: formatInteger(summary.accounts) },
           { label: consumingAccountsLabel, value: formatInteger(summary.consumingAccounts) },
           { label: basisTotalLabel, value: basisTotal },
           { label: "已分摊实际成本", value: formatActualCost(summary.allocatedCost, actualCostCurrency) }
         ]}
       />
 
-      <div className="table-section">
-        <div className="table-header">
+      <section className="card table-section" aria-label="成本分摊结果">
+        <div className="card-header table-header">
           <div className="table-title-actions">
             <h2>分摊结果</h2>
             <div className="table-selection-actions">
@@ -412,7 +414,8 @@ export function AllocationTab(props: {
             </div>
           </div>
         </div>
-        <div className="table-wrap">
+        <div className="card-body card-body-flush table-body">
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -464,8 +467,9 @@ export function AllocationTab(props: {
               )}
             </tbody>
           </table>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }

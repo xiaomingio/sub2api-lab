@@ -3,11 +3,11 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
 import type { CSSProperties } from "react";
 import { presetLabels } from "../../shared/ranges.js";
 import type { RangePreset } from "../../shared/ranges.js";
 import { formatDateTime } from "../format.js";
+import { FilterSummary } from "./FilterSummary.js";
 
 const presetOrder: RangePreset[] = [
   "today",
@@ -46,7 +46,8 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
   const [customStart, setCustomStart] = useState(range.startDate);
   const [customEnd, setCustomEnd] = useState(range.endDate);
   const [panelStyle, setPanelStyle] = useState<CSSProperties | undefined>();
-  const pickerRef = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
 
   useEffect(() => {
     const reposition = () => {
-      if (pickerRef.current?.open) positionPanel();
+      if (open) positionPanel();
     };
     window.addEventListener("resize", reposition);
     window.addEventListener("scroll", reposition, true);
@@ -74,7 +75,7 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
       window.removeEventListener("resize", reposition);
       window.removeEventListener("scroll", reposition, true);
     };
-  }, []);
+  }, [open]);
 
   function positionPanel() {
     const picker = pickerRef.current;
@@ -91,24 +92,14 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
   }
 
   function closePicker() {
-    pickerRef.current?.removeAttribute("open");
+    setOpen(false);
   }
 
   const rangeText = `${formatDateTime(range.start, timezone)} 至 ${formatDateTime(range.end, timezone)}`;
-
   return (
-    <div className="range-section">
-      <details
-        className="range-picker"
-        ref={pickerRef}
-        onToggle={() => requestAnimationFrame(positionPanel)}
-      >
-        <summary>
-          <span className="field-kicker">时间范围</span>
-          <strong title={rangeText}>{range.label}</strong>
-          <ChevronDown className="chevron" size={17} aria-hidden="true" />
-        </summary>
-        <div className="range-panel" ref={panelRef} style={panelStyle}>
+    <div className={`record-filter-card${open ? " is-open" : ""}`} ref={pickerRef}>
+        <FilterSummary label="时间范围" value={range.label} title={rangeText} open={open} onClick={() => setOpen((value) => !value)} />
+        {open ? <div className="range-panel" ref={panelRef} style={panelStyle}>
           <div className="preset-grid">
             {presetOrder.map((preset) => (
               <button
@@ -143,8 +134,7 @@ export function DateRangePicker({ range, timezone, onChange }: DateRangePickerPr
             </label>
             <button className="apply-button" type="submit">应用</button>
           </form>
-        </div>
-      </details>
+        </div> : null}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /*
- * 文件说明: 余额设置工作区，负责选择账号并提交余额恢复。
+ * 文件说明: 余额设置工作区，负责选择用户并提交余额恢复。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -32,7 +32,7 @@ export function BalanceSettingsTab(props: { data: DashboardData; onRefresh: () =
   async function submitRestore() {
     setConfirming(false);
     setSubmitting(true);
-    setResult({ state: "warning", text: "正在调用 Sub2API 管理接口写入所选账号余额。" });
+    setResult({ state: "warning", text: "正在调用 Sub2API 管理接口写入所选用户余额。" });
     try {
       const payload = await restoreBalances({
         targetBalance,
@@ -47,11 +47,12 @@ export function BalanceSettingsTab(props: { data: DashboardData; onRefresh: () =
   }
 
   return (
-    <section className="tab-panel is-active balance-panel" aria-label="余额设置">
+    <>
       {!props.data.restore.enabled ? <div className="status-message is-warning">{props.data.restore.disabledReason}</div> : null}
 
-      <div className="tool-panel">
-        <div className="form-grid">
+      <section className="card tool-panel" aria-label="余额设置操作">
+        <div className="card-body">
+          <div className="form-grid">
           <label>
             <span>下月新系统额度</span>
             <input
@@ -67,27 +68,28 @@ export function BalanceSettingsTab(props: { data: DashboardData; onRefresh: () =
             disabled={!canSubmit || submitting}
             onClick={() => setConfirming(true)}
           >
-            {submitting ? "写入中" : "设置所选账号"}
+            {submitting ? "写入中" : "设置所选用户"}
           </button>
           <button className="ghost-button" type="button" onClick={props.onRefresh}>
             刷新当前余额
           </button>
+          </div>
+          {result ? <div className={`status-message is-${result.state}`}>{result.text}</div> : null}
         </div>
-        <AccountPicker
-          accounts={sortedAccounts}
-          selectedUserIds={selectedUserIds}
-          disabled={!props.data.restore.enabled || submitting}
-          sortDescription="按当前系统余额从高到低排列"
-          onChange={setSelectedUserIds}
-        />
-        {result ? <div className={`status-message is-${result.state}`}>{result.text}</div> : null}
-      </div>
+      </section>
+
+      <AccountPicker
+        accounts={sortedAccounts}
+        selectedUserIds={selectedUserIds}
+        disabled={!props.data.restore.enabled || submitting}
+        onChange={setSelectedUserIds}
+      />
 
       <dialog className="confirm-dialog" ref={dialogRef} onCancel={() => setConfirming(false)}>
         <form method="dialog">
           <h2>确认设置系统余额</h2>
           <p>
-            将把 {selected.length} 个账号的系统余额覆盖为 {formatSystemBalance(targetBalance)}。这会写入 Sub2API 并记录余额调整历史：
+            将把 {selected.length} 个用户的系统余额覆盖为 {formatSystemBalance(targetBalance)}。这会写入 Sub2API 并记录余额调整历史：
             {selected.map(accountName).join("、")}
           </p>
           <div className="dialog-actions">
@@ -100,7 +102,7 @@ export function BalanceSettingsTab(props: { data: DashboardData; onRefresh: () =
           </div>
         </form>
       </dialog>
-    </section>
+    </>
   );
 }
 
@@ -109,10 +111,10 @@ function summarizeRestoreResult(accounts: BalanceAccount[], payload: RestoreResu
   const updatedNames = payload.updatedUserIds.map((userId) => accountName(accountById.get(userId) || { userId, email: "", username: "" }));
   const parts = [];
   if (payload.updatedUserIds.length > 0) {
-    parts.push(`已恢复 ${payload.updatedUserIds.length} 个账号：${updatedNames.join("、")}`);
+    parts.push(`已恢复 ${payload.updatedUserIds.length} 个用户：${updatedNames.join("、")}`);
   }
   if (payload.unchangedUserIds.length > 0) {
-    parts.push(`已有 ${payload.unchangedUserIds.length} 个账号本来就是目标额度`);
+    parts.push(`已有 ${payload.unchangedUserIds.length} 个用户本来就是目标额度`);
   }
   if (payload.failures.length > 0) {
     parts.push(

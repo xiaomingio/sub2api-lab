@@ -25,6 +25,12 @@ const tabLabels: Record<DashboardTab, string> = {
   balance: "余额设置"
 };
 
+const defaultRangePresets = {
+  usage: "last_24_hours",
+  records: "last_7_days",
+  quota: "last_7_days"
+} as const;
+
 const sortHeaders: Array<{ key: UsageSortKey; label: string; numeric?: boolean }> = [
   { key: "user", label: "用户" },
   { key: "requests", label: "请求", numeric: true },
@@ -85,11 +91,11 @@ function initialTab(): DashboardTab {
   return tab === "allocation" || tab === "balance" || tab === "records" || tab === "quota" ? tab : "usage";
 }
 
-function initialUsageQuery(): UsageQuery {
+function initialUsageQuery(defaultPreset: string, useUrlPreset = true): UsageQuery {
   const params = new URLSearchParams(window.location.search);
   const allocationBasis = params.get("allocation_basis");
   return {
-    preset: params.get("preset") || undefined,
+    preset: useUrlPreset ? params.get("preset") || defaultPreset : defaultPreset,
     startDate: params.get("start_date") || undefined,
     endDate: params.get("end_date") || undefined,
     sort: (params.get("sort") || undefined) as UsageSortKey | undefined,
@@ -100,6 +106,12 @@ function initialUsageQuery(): UsageQuery {
     allocationEndAt: params.get("allocation_end_at") || undefined,
     recordUserIds: parseNumberList(params, "user_ids"),
     recordAccountIds: parseNumberList(params, "account_ids"),
+    recordModels: parseStringList(params, "models"),
+    recordUpstreamEndpoints: parseStringList(params, "upstream_endpoints"),
+    recordBillingModes: parseStringList(params, "billing_modes"),
+    recordRequestTypes: parseNumberList(params, "request_types"),
+    recordApiKeyIds: parseNumberList(params, "api_key_ids"),
+    recordUpstreamModelMismatch: parseBooleanList(params, "upstream_model_mismatch"),
     recordInboundEndpoints: parseStringList(params, "inbound_endpoints"),
     recordGroupIds: parseStringList(params, "group_ids"),
     recordBillingTypes: parseStringList(params, "billing_types")
@@ -112,6 +124,10 @@ function parseStringList(params: URLSearchParams, key: string): string[] {
 
 function parseNumberList(params: URLSearchParams, key: string): number[] {
   return [...new Set(parseStringList(params, key).map(Number).filter((value) => Number.isInteger(value) && value > 0))];
+}
+
+function parseBooleanList(params: URLSearchParams, key: string): boolean[] {
+  return [...new Set(parseStringList(params, key).filter((value) => value === "true" || value === "false").map((value) => value === "true"))];
 }
 
 function normalizeAccountIds(ids: Array<number | undefined> | undefined): number[] {
@@ -163,6 +179,12 @@ function updateUrl(tab: DashboardTab, usageQuery: UsageQuery) {
     if (usageQuery.endDate) params.set("end_date", usageQuery.endDate);
     if (usageQuery.recordUserIds?.length) params.set("user_ids", usageQuery.recordUserIds.join(","));
     if (usageQuery.recordAccountIds?.length) params.set("account_ids", usageQuery.recordAccountIds.join(","));
+    if (usageQuery.recordModels?.length) params.set("models", usageQuery.recordModels.join(","));
+    if (usageQuery.recordUpstreamEndpoints?.length) params.set("upstream_endpoints", usageQuery.recordUpstreamEndpoints.join(","));
+    if (usageQuery.recordBillingModes?.length) params.set("billing_modes", usageQuery.recordBillingModes.join(","));
+    if (usageQuery.recordRequestTypes?.length) params.set("request_types", usageQuery.recordRequestTypes.join(","));
+    if (usageQuery.recordApiKeyIds?.length) params.set("api_key_ids", usageQuery.recordApiKeyIds.join(","));
+    if (usageQuery.recordUpstreamModelMismatch?.length) params.set("upstream_model_mismatch", usageQuery.recordUpstreamModelMismatch.join(","));
     if (usageQuery.recordInboundEndpoints?.length) params.set("inbound_endpoints", usageQuery.recordInboundEndpoints.join(","));
     if (usageQuery.recordGroupIds?.length) params.set("group_ids", usageQuery.recordGroupIds.join(","));
     if (usageQuery.recordBillingTypes?.length) params.set("billing_types", usageQuery.recordBillingTypes.join(","));
@@ -217,6 +239,8 @@ const recordLabels: Record<string, string> = {
   duration_ms: "总耗时",
   request_type: "请求类型",
   billing_type: "计费类型",
+  billing_mode: "计费模式",
+  upstream_model_mismatch: "上游模型审计",
   currency: "货币",
   stream: "流式响应",
   is_stream: "流式响应",
@@ -337,14 +361,16 @@ function compareAllocationRows(left: AllocationDisplayRow, right: AllocationDisp
 
 function MetricGrid(props: { metrics: Array<{ label: string; value: string }> }) {
   return (
-    <div className="metric-grid">
-      {props.metrics.map((metric) => (
-        <article key={metric.label}>
-          <span>{metric.label}</span>
-          <strong>{metric.value}</strong>
-        </article>
-      ))}
-    </div>
+    <section className="card metric-grid" aria-label="关键指标">
+      <div className="card-body">
+        {props.metrics.map((metric) => (
+          <article key={metric.label}>
+            <span>{metric.label}</span>
+            <strong>{metric.value}</strong>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -352,7 +378,6 @@ function AccountPicker(props: {
   accounts: BalanceAccount[];
   selectedUserIds: Set<number>;
   disabled?: boolean;
-  sortDescription: string;
   getDetailSuffix?: (account: BalanceAccount) => string;
   onChange: (selectedUserIds: Set<number>) => void;
 }) {
@@ -362,53 +387,66 @@ function AccountPicker(props: {
   };
 
   return (
-    <>
-      <div className="selection-head">
-        <div>
-          <h3>账号选择</h3>
-          <p className="selection-meta">
-            <span>{selectedCount === 0 ? "当前未选择账号" : `当前已选择 ${formatInteger(selectedCount)} 个账号`}</span>
-            <span>{props.sortDescription}</span>
-          </p>
-        </div>
-        <div className="selection-actions">
+    <section className="card account-selection-section" aria-label="用户选择">
+      <div className="card-header selection-head">
+        <h2>用户选择</h2>
+        <div className="section-heading-actions">
+          <span className="selection-status">{selectedCount === 0 ? "当前未选择用户" : `当前已选择 ${formatInteger(selectedCount)} 个用户`}</span>
+          <div className="selection-actions">
           <button className="ghost-button" type="button" disabled={props.disabled} onClick={() => setAll(true)}>
             全选
           </button>
           <button className="ghost-button" type="button" disabled={props.disabled} onClick={() => setAll(false)}>
             清空
           </button>
+          </div>
         </div>
       </div>
 
-      <div className="account-grid">
-        {props.accounts.map((account) => (
-          <label className="account-option" key={account.userId}>
-            <input
-              type="checkbox"
-              checked={props.selectedUserIds.has(account.userId)}
-              disabled={props.disabled}
-              onChange={(event) => {
-                const next = new Set(props.selectedUserIds);
-                if (event.target.checked) {
-                  next.add(account.userId);
-                } else {
-                  next.delete(account.userId);
-                }
-                props.onChange(next);
-              }}
-            />
-            <span>
-              <strong>{accountName(account)}</strong>
-              <small>
-                #{account.userId} · 当前系统余额 {formatSystemBalance(account.currentBalance)}
-                {props.getDetailSuffix ? ` · ${props.getDetailSuffix(account)}` : ""}
-              </small>
-            </span>
-          </label>
-        ))}
+      <div className="card-body card-body-flush table-body">
+        <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th className="select-col">选择</th>
+              <th>用户</th>
+              <th>用户 ID</th>
+              <th className="num">当前系统余额</th>
+              {props.getDetailSuffix ? <th>补充信息</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {props.accounts.map((account) => (
+              <tr key={account.userId}>
+                <td className="select-col">
+                  <input
+                    type="checkbox"
+                    checked={props.selectedUserIds.has(account.userId)}
+                    disabled={props.disabled}
+                    onChange={(event) => {
+                      const next = new Set(props.selectedUserIds);
+                      if (event.target.checked) {
+                        next.add(account.userId);
+                      } else {
+                        next.delete(account.userId);
+                      }
+                      props.onChange(next);
+                    }}
+                  />
+                </td>
+                <td>
+                  <strong>{accountName(account)}</strong>
+                </td>
+                <td className="muted-cell">#{account.userId}</td>
+                <td className="num strong">{formatSystemBalance(account.currentBalance)}</td>
+                {props.getDetailSuffix ? <td className="muted-cell">{props.getDetailSuffix(account)}</td> : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
       </div>
-    </>
+    </section>
   );
 }
 
@@ -423,6 +461,7 @@ export {
   allocationBasisOptions,
   allocationBasisSortKey,
   allocationSelectionKey,
+  defaultRangePresets,
   compareAccountsByName,
   compareAllocationRows,
   compareZeroCurrentBalanceLast,

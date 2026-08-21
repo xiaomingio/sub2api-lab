@@ -34,6 +34,12 @@ type UsageQuery = {
   page?: string;
   user_ids?: string | string[];
   account_ids?: string | string[];
+  models?: string | string[];
+  upstream_endpoints?: string | string[];
+  billing_modes?: string | string[];
+  request_types?: string | string[];
+  api_key_ids?: string | string[];
+  upstream_model_mismatch?: string | string[];
   inbound_endpoints?: string | string[];
   group_ids?: string | string[];
   billing_types?: string | string[];
@@ -142,7 +148,7 @@ export function createHandlers({ config, db, clientDir }: AppOptions) {
       timezone: config.timezone,
       defaultPreset: config.defaultRange
     });
-    return getUsageRecords({ db, range, limit: query.limit, page: query.page, defaultLimit: config.maxRows, userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) });
+    return getUsageRecords({ db, range, limit: query.limit, page: query.page, defaultLimit: config.maxRows, userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), models: parseQueryList(query.models), upstreamEndpoints: parseQueryList(query.upstream_endpoints), billingModes: parseQueryList(query.billing_modes), requestTypes: parseQueryList(query.request_types), apiKeyIds: parseQueryList(query.api_key_ids), upstreamModelMismatch: parseQueryList(query.upstream_model_mismatch), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) });
   }
 
   async function usageRecordFilterOptionsApi() {
@@ -153,7 +159,7 @@ export function createHandlers({ config, db, clientDir }: AppOptions) {
     const query = request.query as UsageQuery;
     const range = resolveDateRange({ preset: query.preset || "last_7_days", startDate: query.start_date, endDate: query.end_date, timezone: config.timezone, defaultPreset: "last_7_days" });
     const granularity = query.granularity === "day" ? "day" : "hour";
-    return getUsageAnalysis({ db, range, timezone: config.timezone, granularity, filters: { userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) } });
+    return getUsageAnalysis({ db, range, timezone: config.timezone, granularity, filters: { userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), models: parseQueryList(query.models), upstreamEndpoints: parseQueryList(query.upstream_endpoints), billingModes: parseQueryList(query.billing_modes), requestTypes: parseQueryList(query.request_types), apiKeyIds: parseQueryList(query.api_key_ids), upstreamModelMismatch: parseQueryList(query.upstream_model_mismatch), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) } });
   }
 
   async function restoreBalanceApi(request: FastifyRequest, reply: FastifyReply) {

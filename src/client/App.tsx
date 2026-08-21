@@ -9,10 +9,12 @@ import { BalanceSettingsTab } from "./features/BalanceSettingsTab.js";
 import { RecordsTab } from "./features/RecordsTab.js";
 import { UsageTab } from "./features/UsageTab.js";
 import { QuotaAnalysisTab } from "./features/QuotaAnalysisTab.js";
+import { LoadingSection } from "./components/LoadingSection.js";
 import type { UsageAnalysisData } from "./types.js";
 import {
   allocationSelectionKey,
   defaultAllocationSelectedUserIds,
+  defaultRangePresets,
   initialTab,
   initialUsageQuery,
   tabLabels,
@@ -22,7 +24,8 @@ import type { DashboardData, DashboardTab, UsageQuery, UsageRecordsData, UsageRe
 
 export function App() {
   const [tab, setTab] = useState<DashboardTab>(initialTab);
-  const [usageQuery, setUsageQuery] = useState<UsageQuery>(initialUsageQuery);
+  const [usageQuery, setUsageQuery] = useState<UsageQuery>(() => initialUsageQuery(defaultRangePresets.usage, initialTab() !== "records"));
+  const [recordsQuery, setRecordsQuery] = useState<UsageQuery>(() => initialUsageQuery(defaultRangePresets.records, initialTab() === "records"));
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,19 +35,21 @@ export function App() {
   const [recordsPage, setRecordsPage] = useState(1);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [recordAnalysis, setRecordAnalysis] = useState<UsageAnalysisData | null>(null);
+  const quotaAnalysisCache = useRef(new Map<string, UsageAnalysisData>()).current;
   const [allocationSelectedUserIds, setAllocationSelectedUserIds] = useState<Set<number>>(new Set());
   const allocationInitialized = useRef(false);
   const allocationSelectionKeyRef = useRef("");
+  const activeQuery = tab === "records" ? recordsQuery : usageQuery;
 
   async function loadDashboard() {
     setLoading(true);
     setError("");
     try {
-      const payload = await fetchDashboard(usageQuery);
+      const payload = await fetchDashboard(activeQuery);
       setData(payload);
-      const nextAllocationSelectionKey = allocationSelectionKey(usageQuery);
+      const nextAllocationSelectionKey = allocationSelectionKey(activeQuery);
       if (!allocationInitialized.current || allocationSelectionKeyRef.current !== nextAllocationSelectionKey) {
-        setAllocationSelectedUserIds(defaultAllocationSelectedUserIds(payload, usageQuery.allocationBasis));
+        setAllocationSelectedUserIds(defaultAllocationSelectedUserIds(payload, activeQuery.allocationBasis));
         allocationInitialized.current = true;
         allocationSelectionKeyRef.current = nextAllocationSelectionKey;
       }
@@ -56,17 +61,17 @@ export function App() {
   }
 
   useEffect(() => {
-    updateUrl(tab, usageQuery);
-  }, [tab, usageQuery]);
+    updateUrl(tab, activeQuery);
+  }, [activeQuery, tab]);
 
   useEffect(() => {
     void loadDashboard();
-  }, [usageQuery]);
+  }, [activeQuery, tab]);
 
   useEffect(() => {
     if (tab !== "records") return;
     setRecordsPage(1);
-  }, [usageQuery, tab]);
+  }, [recordsQuery, tab]);
 
   useEffect(() => {
     if (tab !== "records") return;
@@ -79,19 +84,19 @@ export function App() {
   useEffect(() => {
     if (tab !== "records") return;
     setRecordsLoading(true);
-    void fetchUsageRecords(usageQuery, recordsLimit, recordsPage)
+    void fetchUsageRecords(recordsQuery, recordsLimit, recordsPage)
       .then(setRecords)
       .catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : "加载使用记录失败。"))
       .finally(() => setRecordsLoading(false));
-  }, [recordsLimit, recordsPage, tab, usageQuery]);
+  }, [recordsLimit, recordsPage, tab, recordsQuery]);
 
   useEffect(() => {
     if (tab !== "records") return;
-    void fetchUsageAnalysis(usageQuery, "day", true).then(setRecordAnalysis).catch(() => setRecordAnalysis(null));
-  }, [tab, usageQuery]);
+    void fetchUsageAnalysis(recordsQuery, "day", true).then(setRecordAnalysis).catch(() => setRecordAnalysis(null));
+  }, [tab, recordsQuery]);
 
   return (
-    <main className="page-shell">
+    <>
       <header className="app-header">
         <div className="app-brand">
           <span className="app-eyebrow">SUB2API LAB / ADMIN</span>
@@ -116,8 +121,8 @@ export function App() {
         </form>
       </header>
 
-      <div className="page-content">
-        {loading && !data ? <div className="status-message">正在加载数据。</div> : null}
+      <main className="page-content">
+        {loading && !data ? <LoadingSection /> : null}
         {error ? <div className="status-message is-error">{error}</div> : null}
         {data ? (
           <>
@@ -127,7 +132,7 @@ export function App() {
           {tab === "records" ? (
             <RecordsTab
               data={data}
-              usageQuery={usageQuery}
+              usageQuery={recordsQuery}
               records={records}
               filterOptions={recordFilterOptions}
               limit={recordsLimit}
@@ -135,11 +140,11 @@ export function App() {
               onLimitChange={setRecordsLimit}
               page={recordsPage}
               onPageChange={setRecordsPage}
-              onUsageQueryChange={setUsageQuery}
+              onUsageQueryChange={setRecordsQuery}
               analysis={recordAnalysis}
             />
           ) : null}
-          {tab === "quota" ? <QuotaAnalysisTab data={data} usageQuery={usageQuery} /> : null}
+          {tab === "quota" ? <QuotaAnalysisTab data={data} analysisCache={quotaAnalysisCache} /> : null}
           {tab === "allocation" ? (
             <AllocationTab
               data={data}
@@ -152,7 +157,7 @@ export function App() {
           {tab === "balance" ? <BalanceSettingsTab data={data} onRefresh={() => void loadDashboard()} /> : null}
           </>
         ) : null}
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

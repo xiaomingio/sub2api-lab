@@ -47,6 +47,12 @@ function usageRecordsSearch(query: UsageQuery, limit: number, page: number): str
   if (query.endDate) params.set("end_date", query.endDate);
   if (query.recordUserIds?.length) params.set("user_ids", query.recordUserIds.join(","));
   if (query.recordAccountIds?.length) params.set("account_ids", query.recordAccountIds.join(","));
+  if (query.recordModels?.length) params.set("models", query.recordModels.join(","));
+  if (query.recordUpstreamEndpoints?.length) params.set("upstream_endpoints", query.recordUpstreamEndpoints.join(","));
+  if (query.recordBillingModes?.length) params.set("billing_modes", query.recordBillingModes.join(","));
+  if (query.recordRequestTypes?.length) params.set("request_types", query.recordRequestTypes.join(","));
+  if (query.recordApiKeyIds?.length) params.set("api_key_ids", query.recordApiKeyIds.join(","));
+  if (query.recordUpstreamModelMismatch?.length) params.set("upstream_model_mismatch", query.recordUpstreamModelMismatch.join(","));
   if (query.recordInboundEndpoints?.length) params.set("inbound_endpoints", query.recordInboundEndpoints.join(","));
   if (query.recordGroupIds?.length) params.set("group_ids", query.recordGroupIds.join(","));
   if (query.recordBillingTypes?.length) params.set("billing_types", query.recordBillingTypes.join(","));
@@ -94,6 +100,12 @@ export async function fetchUsageAnalysis(query: UsageQuery, granularity: "hour" 
   if (includeRecordFilters) {
     if (query.recordUserIds?.length) params.set("user_ids", query.recordUserIds.join(","));
     if (query.recordAccountIds?.length) params.set("account_ids", query.recordAccountIds.join(","));
+    if (query.recordModels?.length) params.set("models", query.recordModels.join(","));
+    if (query.recordUpstreamEndpoints?.length) params.set("upstream_endpoints", query.recordUpstreamEndpoints.join(","));
+    if (query.recordBillingModes?.length) params.set("billing_modes", query.recordBillingModes.join(","));
+    if (query.recordRequestTypes?.length) params.set("request_types", query.recordRequestTypes.join(","));
+    if (query.recordApiKeyIds?.length) params.set("api_key_ids", query.recordApiKeyIds.join(","));
+    if (query.recordUpstreamModelMismatch?.length) params.set("upstream_model_mismatch", query.recordUpstreamModelMismatch.join(","));
     if (query.recordInboundEndpoints?.length) params.set("inbound_endpoints", query.recordInboundEndpoints.join(","));
     if (query.recordGroupIds?.length) params.set("group_ids", query.recordGroupIds.join(","));
     if (query.recordBillingTypes?.length) params.set("billing_types", query.recordBillingTypes.join(","));

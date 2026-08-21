@@ -25,12 +25,16 @@ export function UsageTab(props: {
   }
 
   return (
-    <section className="tab-panel is-active usage-panel" aria-label="用量统计">
-      <DateRangePicker
-        range={usage.range}
-        timezone={props.data.timezone}
-        onChange={(change) => props.onUsageQueryChange({ ...props.usageQuery, ...change })}
-      />
+    <>
+      <section className="card filter-section" aria-label="时间范围筛选">
+        <div className="card-body">
+          <DateRangePicker
+            range={usage.range}
+            timezone={props.data.timezone}
+            onChange={(change) => props.onUsageQueryChange({ ...props.usageQuery, ...change })}
+          />
+        </div>
+      </section>
 
       <MetricGrid
         metrics={[
@@ -41,12 +45,13 @@ export function UsageTab(props: {
         ]}
       />
 
-      <div className="table-section">
-        <div className="table-header">
+      <section className="card table-section" aria-label="用户用量汇总">
+        <div className="card-header table-header">
           <h2>用户用量汇总</h2>
           <span>最多显示 {formatInteger(props.data.maxRows)} 行</span>
         </div>
-        <div className="table-wrap">
+        <div className="card-body card-body-flush table-body">
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -93,8 +98,9 @@ export function UsageTab(props: {
               )}
             </tbody>
           </table>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }

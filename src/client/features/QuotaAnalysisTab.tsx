@@ -9,15 +9,19 @@ import echarts from "../components/charts.js";
 import { Search } from "lucide-react";
 import { fetchUsageAnalysis } from "../api.js";
 import { DateRangePicker } from "../components/DateRangePicker.js";
+import { LoadingSection } from "../components/LoadingSection.js";
 import { formatAnalysisCost, formatDateTime, formatInteger, formatTokenAmount } from "../format.js";
+import { resolveDateRange } from "../../shared/ranges.js";
 import type { DashboardData, UsageAnalysisData, UsageQuery } from "../types.js";
+import { defaultRangePresets } from "./shared.js";
 
 type ChartType = "stacked" | "line";
 
-export function QuotaAnalysisTab(props: { data: DashboardData; usageQuery: UsageQuery }) {
+export function QuotaAnalysisTab(props: { data: DashboardData; analysisCache: Map<string, UsageAnalysisData> }) {
   const [granularity, setGranularity] = useState<"hour" | "day">("hour");
-  const [quotaQuery, setQuotaQuery] = useState<UsageQuery>({ preset: "last_7_days" });
-  const [analysis, setAnalysis] = useState<UsageAnalysisData | null>(null);
+  const [quotaQuery, setQuotaQuery] = useState<UsageQuery>({ preset: defaultRangePresets.quota });
+  const initialRequestKey = JSON.stringify([{ preset: defaultRangePresets.quota }, "hour"]);
+  const [analysis, setAnalysis] = useState<UsageAnalysisData | null>(() => props.analysisCache.get(initialRequestKey) || null);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [accountSearch, setAccountSearch] = useState("");
   const [userCostBasis, setUserCostBasis] = useState<"actualCost" | "standardCost">("actualCost");
@@ -27,12 +31,19 @@ export function QuotaAnalysisTab(props: { data: DashboardData; usageQuery: Usage
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   useEffect(() => {
+    const requestKey = JSON.stringify([quotaQuery, granularity]);
+    const cachedAnalysis = props.analysisCache.get(requestKey);
+    if (cachedAnalysis) {
+      setAnalysis(cachedAnalysis);
+      setLoading(false);
+      return;
+    }
     setLoading(true); setError("");
     void fetchUsageAnalysis({ ...quotaQuery, recordUserIds: [], recordAccountIds: [], recordInboundEndpoints: [], recordGroupIds: [], recordBillingTypes: [] }, granularity, false)
-      .then((result) => { setAnalysis(result); if (selectedAccountId && !result.quota.accounts.some((account) => account.accountId === selectedAccountId)) setSelectedAccountId(null); })
+      .then((result) => { props.analysisCache.set(requestKey, result); setAnalysis(result); if (selectedAccountId && !result.quota.accounts.some((account) => account.accountId === selectedAccountId)) setSelectedAccountId(null); })
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "加载额度分析失败。"))
       .finally(() => setLoading(false));
-  }, [granularity, quotaQuery]);
+  }, [granularity, props.analysisCache, quotaQuery, selectedAccountId]);
   const accounts = analysis?.quota.accounts || [];
   const visibleAccounts = useMemo(() => accounts.filter((account) => `${account.name} ${account.platform} ${account.accountId}`.toLowerCase().includes(accountSearch.trim().toLowerCase())), [accounts, accountSearch]);
   const selectedAccount = accounts.find((account) => account.accountId === selectedAccountId) || null;
@@ -40,20 +51,26 @@ export function QuotaAnalysisTab(props: { data: DashboardData; usageQuery: Usage
   const quotaUserLabels = analysis?.quota.buckets || [];
   const quotaUserTokenSeries = useMemo(() => userSeries(filteredUserSeries, "tokens", quotaUserLabels), [filteredUserSeries, quotaUserLabels]);
   const quotaUserCostSeries = useMemo(() => userSeries(filteredUserSeries, userCostBasis, quotaUserLabels), [filteredUserSeries, userCostBasis, quotaUserLabels]);
-  return <section className="tab-panel is-active quota-panel" aria-label="额度分析">
-    <div className="quota-analysis-toolbar"><div className="quota-toolbar-controls"><DateRangePicker range={analysis?.range || props.data.usage.range} timezone={props.data.timezone} onChange={(change) => setQuotaQuery((query) => ({ ...query, ...change }))} /><span>粒度</span><div className="segmented-control"><button className={granularity === "hour" ? "is-active" : ""} type="button" onClick={() => setGranularity("hour")}>小时</button><button className={granularity === "day" ? "is-active" : ""} type="button" onClick={() => setGranularity("day")}>每天</button></div></div></div>
+  const quotaRange = analysis?.range || serializeRange(defaultRangePresets.quota, props.data.timezone);
+  return <>
+    <section className="card quota-analysis-toolbar" aria-label="额度分析筛选"><div className="card-body card-body-horizontal"><DateRangePicker range={quotaRange} timezone={props.data.timezone} onChange={(change) => setQuotaQuery((query) => ({ ...query, ...change }))} /><div className="quota-granularity"><span>粒度</span><div className="segmented-control"><button className={granularity === "hour" ? "is-active" : ""} type="button" onClick={() => setGranularity("hour")}>小时</button><button className={granularity === "day" ? "is-active" : ""} type="button" onClick={() => setGranularity("day")}>每天</button></div></div></div></section>
     {error ? <div className="status-message is-error">{error}</div> : null}
-    {loading && !analysis ? <div className="status-message">正在加载额度分析。</div> : null}
+    {loading && !analysis ? <LoadingSection /> : null}
     <>
-      <section className="quota-section account-list-section"><div className="quota-section-heading"><div><p className="section-eyebrow">UPSTREAM ACCOUNTS</p><h3>账号列表</h3></div><label className="account-window-search"><Search size={15} aria-hidden="true" /><input value={accountSearch} onChange={(event) => setAccountSearch(event.target.value)} placeholder="搜索账号" /></label></div><div className="account-window-scroller"><AccountCard account={null} accounts={accounts} selected={selectedAccountId === null} onSelect={() => setSelectedAccountId(null)} />{visibleAccounts.map((account) => <AccountCard key={account.accountId} account={account} accounts={accounts} selected={selectedAccountId === account.accountId} onSelect={() => setSelectedAccountId(account.accountId)} />)}</div><AccountWindow account={selectedAccount} accounts={accounts} /></section>
-      <section className="quota-section account-analysis-section"><div className="quota-section-heading"><div><p className="section-eyebrow">QUOTA WINDOW</p><h3>模型用量</h3></div><div className="quota-section-actions"><ChartTypeToggle value={accountChartType} onChange={setAccountChartType} /></div></div><div className="account-window-detail"><AccountUsageChart series={analysis?.quota.series || []} buckets={analysis?.quota.buckets || []} accountId={selectedAccountId} chartType={accountChartType} granularity={granularity} /></div></section>
+      <section className="card quota-section account-list-section"><div className="card-header quota-section-heading"><h3>账号列表</h3><label className="account-window-search"><Search size={15} aria-hidden="true" /><input value={accountSearch} onChange={(event) => setAccountSearch(event.target.value)} placeholder="搜索账号" /></label></div><div className="card-body account-list-body"><div className="account-window-scroller"><AccountCard account={null} accounts={accounts} selected={selectedAccountId === null} onSelect={() => setSelectedAccountId(null)} />{visibleAccounts.map((account) => <AccountCard key={account.accountId} account={account} accounts={accounts} selected={selectedAccountId === account.accountId} onSelect={() => setSelectedAccountId(account.accountId)} />)}</div><AccountWindow account={selectedAccount} accounts={accounts} /></div></section>
+      <section className="card quota-section account-analysis-section"><div className="card-header quota-section-heading"><h3>模型用量</h3><div className="quota-section-actions"><ChartTypeToggle value={accountChartType} onChange={setAccountChartType} /></div></div><div className="card-body"><div className="account-window-detail"><AccountUsageChart series={analysis?.quota.series || []} buckets={analysis?.quota.buckets || []} accountId={selectedAccountId} chartType={accountChartType} granularity={granularity} /></div></div></section>
       <QuotaChartSection title="用户 Token 消耗" chartType={userTokenChartType} onChartTypeChange={setUserTokenChartType}><StackedChart data={quotaUserTokenSeries} labels={quotaUserLabels} chartType={userTokenChartType} granularity={granularity} valueType="tokens" /></QuotaChartSection>
       <QuotaChartSection title="用户费用消耗" chartType={userCostChartType} onChartTypeChange={setUserCostChartType} actions={<div className="segmented-control"><button className={userCostBasis === "actualCost" ? "is-active" : ""} type="button" onClick={() => setUserCostBasis("actualCost")}>实际费用</button><button className={userCostBasis === "standardCost" ? "is-active" : ""} type="button" onClick={() => setUserCostBasis("standardCost")}>原始费用</button></div>}><StackedChart data={quotaUserCostSeries} labels={quotaUserLabels} chartType={userCostChartType} granularity={granularity} valueType="cost" /></QuotaChartSection>
     </>
-  </section>;
+  </>;
 }
 
-function QuotaChartSection(props: { title: string; chartType: ChartType; onChartTypeChange: (value: ChartType) => void; actions?: ReactNode; children: ReactNode }) { return <section className="quota-section"><div className="quota-section-heading"><div><p className="section-eyebrow">LOCAL USAGE</p><h3>{props.title}</h3></div><div className="quota-section-actions"><ChartTypeToggle value={props.chartType} onChange={props.onChartTypeChange} />{props.actions}</div></div>{props.children}</section>; }
+function serializeRange(preset: string, timezone: string) {
+  const range = resolveDateRange({ preset, timezone, defaultPreset: preset });
+  return { ...range, start: range.start.toISOString(), end: range.end.toISOString() };
+}
+
+function QuotaChartSection(props: { title: string; chartType: ChartType; onChartTypeChange: (value: ChartType) => void; actions?: ReactNode; children: ReactNode }) { return <section className="card quota-section"><div className="card-header quota-section-heading"><h3>{props.title}</h3><div className="quota-section-actions"><ChartTypeToggle value={props.chartType} onChange={props.onChartTypeChange} />{props.actions}</div></div><div className="card-body">{props.children}</div></section>; }
 function ChartTypeToggle(props: { value: ChartType; onChange: (value: ChartType) => void }) { return <div className="segmented-control" role="group" aria-label="图表类型"><button className={props.value === "stacked" ? "is-active" : ""} type="button" onClick={() => props.onChange("stacked")}>堆叠图</button><button className={props.value === "line" ? "is-active" : ""} type="button" onClick={() => props.onChange("line")}>折线图</button></div>; }
 function AccountCard(props: { account: UsageAnalysisData["quota"]["accounts"][number] | null; accounts: UsageAnalysisData["quota"]["accounts"]; selected: boolean; onSelect: () => void }) { const account = props.account; const all = !account; const tokens = all ? props.accounts.reduce((sum, item) => sum + item.tokens, 0) : account.tokens; return <button className={`account-window-card${all ? " account-window-all" : ""}${props.selected ? " is-selected" : ""}`} type="button" onClick={props.onSelect}><span className="account-window-card-title">{all ? "全部账号" : <><i style={{ backgroundColor: accountColor(account.accountId) }} />{account.name}</>}</span>{all ? <span className="account-window-rate">{formatPercentAverage(props.accounts, "sevenDayUsedPercent")}</span> : <span className="account-window-rate">{formatWindowRate(account)}</span>}<span className="account-window-meter"><i style={{ width: `${all ? averagePercent(props.accounts, "sevenDayUsedPercent") : account.sevenDayUsedPercent || 0}%` }} /></span><dl><div><dt>下次重置</dt><dd>{all ? "多账号" : formatWindowDate(account.sevenDayResetAt)}</dd></div><div><dt>本地 Token</dt><dd>{formatTokenAmount(tokens)}</dd></div></dl></button>; }
 function AccountWindow(props: { account: UsageAnalysisData["quota"]["accounts"][number] | null; accounts: UsageAnalysisData["quota"]["accounts"] }) { const account = props.account; const selectedAccounts = account ? [account] : props.accounts; const totalTokens = selectedAccounts.reduce((sum, item) => sum + item.tokens, 0); const standardCost = selectedAccounts.reduce((sum, item) => sum + item.standardCost, 0); const actualCost = selectedAccounts.reduce((sum, item) => sum + item.actualCost, 0); return <div className="account-window-summary"><div><span>当前选择</span><strong>{account?.name || "全部账号"}</strong></div><div><span>本地 Token</span><strong>{formatTokenAmount(totalTokens)}</strong></div><div><span>7 天使用率</span><strong>{account ? `${formatWindowRate(account)}` : formatPercentAverage(props.accounts, "sevenDayUsedPercent")}</strong></div><div><span>窗口起点 - 下次重置</span><strong>{account ? `${formatWindowDate(account.sevenDayWindowStart)} - ${formatWindowDate(account.sevenDayResetAt)}` : "按账号分别展示"}</strong></div><div><span>账号成本</span><strong>{formatAnalysisCost(standardCost)}</strong></div><div><span>实际扣费</span><strong>{formatAnalysisCost(actualCost)}</strong></div><div><span>数据更新时间</span><strong>{account ? formatWindowDate(account.usageUpdatedAt) : "按账号分别更新"}</strong></div></div>; }
