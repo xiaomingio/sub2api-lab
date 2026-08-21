@@ -724,8 +724,13 @@
 }
 
 .record-filter-popover {
-  @apply absolute left-0 top-[calc(100%+10px)] z-20 w-[min(390px,calc(100vw-32px))] rounded-xl border border-[color:var(--panel-border)] bg-white p-4;
+  @apply absolute left-0 top-[calc(100%+10px)] z-20 box-border max-h-[calc(100dvh-24px)] w-[min(390px,calc(100vw-32px))] overflow-y-auto rounded-xl border border-[color:var(--panel-border)] bg-white p-4;
   box-shadow: 0 18px 44px rgba(25, 54, 51, 0.16);
+}
+
+.records-filter-row > .record-filter-card:nth-child(6n + 5) .record-filter-popover,
+.records-filter-row > .record-filter-card:nth-child(6n) .record-filter-popover {
+  @apply right-0 left-auto;
 }
 
 .record-filter-head,
@@ -1242,7 +1247,7 @@
   }
 
   .record-filter-popover {
-    @apply fixed left-4 right-4 top-[168px] w-auto;
+    @apply fixed left-4 right-4 top-4 max-h-[calc(100dvh-32px)] w-auto;
   }
 
   .range-panel {
