@@ -8,14 +8,19 @@ import echarts from "../components/charts.js";
 import { fetchQuotaSnapshots } from "../api.js";
 import { DateRangePicker } from "../components/DateRangePicker.js";
 import { LoadingSection } from "../components/LoadingSection.js";
+import { AccountWindowCardList } from "../components/AccountWindowCards.js";
 import { formatDateTime } from "../format.js";
 import { resolveDateRange } from "../../shared/ranges.js";
-import type { DashboardData, QuotaSnapshot, UsageQuery } from "../types.js";
+import type { DashboardData, QuotaSnapshot, UsageAnalysisData, UsageQuery } from "../types.js";
+import { fetchUsageAnalysis } from "../api.js";
 import { defaultPresetForTab } from "./shared.js";
 
 export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; onQueryChange: (query: UsageQuery) => void }) {
   const query = props.query;
   const [snapshots, setSnapshots] = useState<QuotaSnapshot[]>([]);
+  const [accountAnalysis, setAccountAnalysis] = useState<UsageAnalysisData | null>(null);
+  const [accountAnalysisLoading, setAccountAnalysisLoading] = useState(true);
+  const [accountAnalysisError, setAccountAnalysisError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -28,6 +33,15 @@ export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; o
       .finally(() => setLoading(false));
   }, [query]);
 
+  useEffect(() => {
+    setAccountAnalysisLoading(true);
+    setAccountAnalysisError("");
+    void fetchUsageAnalysis({ ...query, recordUserIds: [], recordAccountIds: [], recordInboundEndpoints: [], recordGroupIds: [], recordBillingTypes: [] }, "hour", false)
+      .then(setAccountAnalysis)
+      .catch((reason: unknown) => setAccountAnalysisError(reason instanceof Error ? reason.message : "加载当前账号额度失败。"))
+      .finally(() => setAccountAnalysisLoading(false));
+  }, [query]);
+
   const range = useMemo(() => {
     if (query.startDate && query.endDate) {
       return resolveDateRange({ startDate: query.startDate, endDate: query.endDate, timezone: props.data.timezone, defaultPreset: defaultPresetForTab("quotaTrend") });
@@ -38,6 +52,8 @@ export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; o
   return <>
     <section className="card quota-analysis-toolbar" aria-label="额度趋势筛选"><div className="card-body"><DateRangePicker range={{ ...range, start: range.start.toISOString(), end: range.end.toISOString() }} timezone={props.data.timezone} onChange={(change) => props.onQueryChange({ ...query, ...change })} /></div></section>
     {error ? <div className="status-message is-error">{error}</div> : null}
+    {accountAnalysisError ? <div className="status-message is-error">{accountAnalysisError}</div> : null}
+    <section className="card quota-section account-list-section"><div className="card-header quota-section-heading"><h2>当前账号额度</h2><span className="section-caption">读取 Sub2API 当前账号快照</span></div><div className="card-body account-list-body">{accountAnalysis ? <AccountWindowCardList accounts={accountAnalysis.quota.accounts} /> : accountAnalysisLoading ? <LoadingSection /> : <div className="empty-state">当前没有可用的账号额度</div>}</div></section>
     {loading && snapshots.length === 0 ? <LoadingSection /> : <section className="card quota-section"><div className="card-header quota-section-heading"><h2>{range.label}使用率趋势</h2><span className="section-caption">每个配置时区的整点快照；竖线表示检测到使用率下降</span></div><div className="card-body"><QuotaTrendChart snapshots={snapshots} timezone={props.data.timezone} /></div></section>}
   </>;
 }
