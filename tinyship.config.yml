@@ -18,6 +18,4 @@ services:
     host: production-host
     npmInstall: true
     pm2Restart: true
-    preCommand:
-      - npm run db:migrate
     postCommand: []
