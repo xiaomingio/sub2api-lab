@@ -10,6 +10,10 @@ type Db = {
   hasImageOutputTokens: boolean;
 };
 
+type LabDb = {
+  pool: pg.Pool;
+};
+
 export async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, concurrency: number): Promise<T[]> {
   const results = new Array<T>(tasks.length);
   let nextIndex = 0;
@@ -59,4 +63,15 @@ export async function createDb(config: AppConfig): Promise<Db> {
   };
 }
 
-export type { Db };
+export function createLabDb(config: AppConfig): LabDb {
+  const pool = new pg.Pool({
+    connectionString: config.labDatabaseUrl,
+    ssl: shouldUseSsl(config.labDatabaseUrl) ? { rejectUnauthorized: false } : false,
+    max: 5,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 30_000
+  });
+  return { pool };
+}
+
+export type { Db, LabDb };

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "npm run build:client && NODE_ENV=development node --env-file=.env.development ./node_modules/tsx/dist/cli.mjs watch src/server.ts",
     "build": "npm run build:client && tsc",
+    "db:migrate": "node --env-file=.env.production dist/server/migrate.js",
+    "db:migrate:dev": "node --env-file=.env.development dist/server/migrate.js",
     "build:client": "vite build",
     "start": "NODE_ENV=development node --env-file=.env.development dist/server.js",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json && tsc -p tsconfig.client.json",

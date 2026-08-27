@@ -16,6 +16,7 @@ type AppConfig = {
     adminApiKey: string;
   };
   databaseUrl: string;
+  labDatabaseUrl: string;
 };
 
 function getEnv(name: string, fallback = ""): string {
@@ -55,7 +56,23 @@ function getDatabaseUrl(): string {
   return value;
 }
 
+function getLabDatabaseUrl(databaseUrl: string): string {
+  const configured = getEnv("SUB2API_LAB_DATABASE_URL");
+  if (configured) {
+    try {
+      new URL(configured);
+    } catch {
+      throw new Error("Invalid SUB2API_LAB_DATABASE_URL");
+    }
+    return configured;
+  }
+  const url = new URL(databaseUrl);
+  url.pathname = "/sub2api_lab";
+  return url.toString();
+}
+
 export function loadConfig(): AppConfig {
+  const databaseUrl = getDatabaseUrl();
   return {
     host: getEnv("SUB2API_LAB_HOST", "127.0.0.1"),
     port: getIntegerEnv("SUB2API_LAB_PORT", 9100),
@@ -69,7 +86,8 @@ export function loadConfig(): AppConfig {
       baseUrl: getEnv("SUB2API_BASE_URL", "http://127.0.0.1:8080").replace(/\/+$/, ""),
       adminApiKey: getEnv("SUB2API_ADMIN_API_KEY")
     },
-    databaseUrl: getDatabaseUrl()
+    databaseUrl,
+    labDatabaseUrl: getLabDatabaseUrl(databaseUrl)
   };
 }
 

@@ -6,7 +6,9 @@ Sub2API Lab (Sub2API拼车助手) 是基于 [Sub2API](https://github.com/Wei-Sha
 
 | Tab | 使用时机 | 功能 | 数据访问 |
 | --- | --- | --- | --- |
+| 额度趋势 | 日常查看或月底复盘时 | 按配置时区的每个整点展示各上游账号 7 天使用率折线，并列出检测到的重置 | 读取 Sub2API `accounts.extra` 的小时快照 |
 | 用量统计 | 日常查看或排查时 | 按时间范围汇总每位用户的请求数、各类 Token、标准费用和已记录费用 | 读取 `usage_logs` 和 `users` |
+| 额度分析 | 日常查看账号窗口和本地用量时 | 查看当前账号窗口、模型用量、用户 Token 与费用分析 | 读取原始 Sub2API 数据库 |
 | 成本分摊 | 每月结算时 | 按系统余额、实际费用或标准费用计算统计基准，再按比例分摊实际采购总成本 | 读取 `users.balance`、`usage_logs` 和 `accounts` |
 | 余额设置 | 每月开始使用前 | 将所选账号的系统余额设置为当月额度 | 读取 `users.balance`，通过 Admin API 写入 |
 
@@ -72,6 +74,7 @@ npm run dev
 | `SUB2API_LAB_AUTH_USER` | 是 | Sub2API Lab 登录用户名，由部署者设置 |
 | `SUB2API_LAB_AUTH_PASSWORD` | 是 | Sub2API Lab 登录密码，由部署者设置 |
 | `DATABASE_URL` | 是 | Sub2API PostgreSQL 连接串 |
+| `SUB2API_LAB_DATABASE_URL` | 否 | 独立统计库连接串；省略时沿用 `DATABASE_URL` 的连接用户、主机和端口，仅将数据库名改为 `sub2api_lab` |
 | `SUB2API_LAB_HOST` | 否 | 监听地址，默认为 `127.0.0.1` |
 | `SUB2API_LAB_PORT` | 否 | 监听端口，默认为 `9100` |
 | `SUB2API_LAB_BASE_PATH` | 否 | 挂载子路径，默认使用根路径 |
@@ -84,6 +87,22 @@ npm run dev
 ```dotenv
 DATABASE_URL=postgresql://用户名:密码@数据库地址:端口/数据库名?sslmode=disable
 ```
+
+额度趋势使用独立的 `sub2api_lab` 数据库。首次部署时由数据库管理员创建该数据库，并让 `DATABASE_URL` 使用的同一用户可以连接和写入：
+
+```sql
+CREATE DATABASE sub2api_lab OWNER 当前应用数据库用户;
+GRANT CONNECT ON DATABASE sub2api_lab TO 当前应用数据库用户;
+```
+
+切换到 `sub2api_lab` 后执行应用迁移：
+
+```bash
+npm run build
+npm run db:migrate
+```
+
+迁移会创建 `sub2api_lab_quota_snapshots` 表。应用运行时每个配置时区的整点读取 Sub2API `accounts.extra`，将 7 天使用率保存为小时快照，不调用 Sub2API 额度刷新接口。应用启动不会自动执行迁移，数据库管理员应先完成迁移，再启动应用。
 
 登录凭据属于 Sub2API Lab，与 Sub2API 用户账号无关。未登录访问会进入登录页；生产环境请使用独立的强密码。
 

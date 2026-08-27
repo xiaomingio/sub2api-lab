@@ -9,12 +9,13 @@ import { BalanceSettingsTab } from "./features/BalanceSettingsTab.js";
 import { RecordsTab } from "./features/RecordsTab.js";
 import { UsageTab } from "./features/UsageTab.js";
 import { QuotaAnalysisTab } from "./features/QuotaAnalysisTab.js";
+import { QuotaTrendTab } from "./features/QuotaTrendTab.js";
 import { LoadingSection } from "./components/LoadingSection.js";
 import type { UsageAnalysisData } from "./types.js";
 import {
   allocationSelectionKey,
   defaultAllocationSelectedUserIds,
-  defaultRangePresets,
+  defaultPresetForTab,
   initialTab,
   initialUsageQuery,
   tabLabels,
@@ -23,9 +24,13 @@ import {
 import type { DashboardData, DashboardTab, UsageQuery, UsageRecordsData, UsageRecordFilterOptions } from "./types.js";
 
 export function App() {
-  const [tab, setTab] = useState<DashboardTab>(initialTab);
-  const [usageQuery, setUsageQuery] = useState<UsageQuery>(() => initialUsageQuery(defaultRangePresets.usage, initialTab() !== "records"));
-  const [recordsQuery, setRecordsQuery] = useState<UsageQuery>(() => initialUsageQuery(defaultRangePresets.records, initialTab() === "records"));
+  const [tab, setTab] = useState<DashboardTab>(() => initialTab());
+  const activeInitialTab = tab;
+  const [usageQuery, setUsageQuery] = useState<UsageQuery>(() => initialUsageQuery(defaultPresetForTab("usage"), activeInitialTab === "usage"));
+  const [recordsQuery, setRecordsQuery] = useState<UsageQuery>(() => initialUsageQuery(defaultPresetForTab("records"), activeInitialTab === "records"));
+  const [allocationQuery, setAllocationQuery] = useState<UsageQuery>(() => initialUsageQuery(defaultPresetForTab("allocation"), activeInitialTab === "allocation"));
+  const [quotaQuery, setQuotaQuery] = useState<UsageQuery>(() => initialUsageQuery(defaultPresetForTab("quota"), activeInitialTab === "quota"));
+  const [quotaTrendQuery, setQuotaTrendQuery] = useState<UsageQuery>(() => initialUsageQuery(defaultPresetForTab("quotaTrend"), activeInitialTab === "quotaTrend"));
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -39,7 +44,7 @@ export function App() {
   const [allocationSelectedUserIds, setAllocationSelectedUserIds] = useState<Set<number>>(new Set());
   const allocationInitialized = useRef(false);
   const allocationSelectionKeyRef = useRef("");
-  const activeQuery = tab === "records" ? recordsQuery : usageQuery;
+  const activeQuery = tab === "usage" ? usageQuery : tab === "records" ? recordsQuery : tab === "allocation" ? allocationQuery : tab === "quota" ? quotaQuery : tab === "quotaTrend" ? quotaTrendQuery : usageQuery;
 
   async function loadDashboard() {
     setLoading(true);
@@ -144,13 +149,14 @@ export function App() {
               analysis={recordAnalysis}
             />
           ) : null}
-          {tab === "quota" ? <QuotaAnalysisTab data={data} analysisCache={quotaAnalysisCache} /> : null}
+          {tab === "quota" ? <QuotaAnalysisTab data={data} query={quotaQuery} onQueryChange={setQuotaQuery} analysisCache={quotaAnalysisCache} /> : null}
+          {tab === "quotaTrend" ? <QuotaTrendTab data={data} query={quotaTrendQuery} onQueryChange={setQuotaTrendQuery} /> : null}
           {tab === "allocation" ? (
             <AllocationTab
               data={data}
-              usageQuery={usageQuery}
+              usageQuery={allocationQuery}
               selectedUserIds={allocationSelectedUserIds}
-              onUsageQueryChange={(query) => setUsageQuery(query)}
+              onUsageQueryChange={(query) => setAllocationQuery(query)}
               onSelectedUserIdsChange={setAllocationSelectedUserIds}
             />
           ) : null}

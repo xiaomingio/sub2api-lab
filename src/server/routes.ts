@@ -27,6 +27,7 @@ export function registerRoutes(app: FastifyInstance, options: AppOptions, handle
     app.get(api("/api/usage-records"), { preHandler: requireAuth }, handlers.usageRecordsApi);
     app.get(api("/api/usage-record-filter-options"), { preHandler: requireAuth }, handlers.usageRecordFilterOptionsApi);
     app.get(api("/api/usage-analysis"), { preHandler: requireAuth }, handlers.usageAnalysisApi);
+    app.get(api("/api/quota-snapshots"), { preHandler: requireAuth }, handlers.quotaSnapshotsApi);
     app.post(api("/api/balances/restore"), { preHandler: requireAuth }, handlers.restoreBalanceApi);
     app.get(api("/login"), async (_request, reply) => handlers.sendHtml(reply, "login"));
     app.post(api("/login"), auth.handleLogin);

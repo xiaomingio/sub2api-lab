@@ -74,7 +74,7 @@ type RestoreResult = {
   failures: RestoreFailure[];
 };
 
-type DashboardTab = "allocation" | "balance" | "usage" | "records" | "quota";
+type DashboardTab = "quotaTrend" | "allocation" | "balance" | "usage" | "records" | "quota";
 
 type UsageQuery = {
   preset?: string;
@@ -125,6 +125,21 @@ type UsageRecordFilterOptions = {
 };
 
 type DistributionItem = { label: string; value: number };
+type QuotaSnapshot = {
+  id: number;
+  sampledAt: string;
+  accountId: number;
+  accountName: string;
+  platform: string;
+  fiveHourUsedPercent: number | null;
+  sevenDayUsedPercent: number | null;
+  fiveHourResetAt: string | null;
+  sevenDayResetAt: string | null;
+  sub2apiUsageUpdatedAt: string | null;
+  previousSevenDayUsedPercent: number | null;
+  isReset: boolean;
+};
+type QuotaSnapshotsData = { range: { start: string; end: string; startDate: string; endDate: string }; snapshots: QuotaSnapshot[] };
 type UsageAnalysisData = {
   range: SerializedDateRange;
   records: { model: DistributionItem[]; group: DistributionItem[]; endpoint: DistributionItem[]; user: DistributionItem[] };
@@ -151,4 +166,4 @@ type UsageAnalysisData = {
   };
 };
 
-export type { DashboardData, DashboardTab, DistributionItem, RestoreFailure, RestoreResult, SerializedUsageReport, UsageAnalysisData, UsageQuery, UsageRecordsData, UsageRecordFilterOption, UsageRecordFilterOptions };
+export type { DashboardData, DashboardTab, DistributionItem, QuotaSnapshot, QuotaSnapshotsData, RestoreFailure, RestoreResult, SerializedUsageReport, UsageAnalysisData, UsageQuery, UsageRecordsData, UsageRecordFilterOption, UsageRecordFilterOptions };

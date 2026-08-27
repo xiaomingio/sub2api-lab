@@ -19,11 +19,12 @@ const config: AppConfig = {
   defaultRange: "last_14_days",
   maxRows: 100,
   sub2api: { baseUrl: "http://127.0.0.1:8080", adminApiKey: "" },
-  databaseUrl: "postgres://localhost/test"
+  databaseUrl: "postgres://localhost/test",
+  labDatabaseUrl: "postgres://localhost/sub2api_lab"
 };
 
 test("API 服务器异常会返回错误详情但不返回堆栈", async () => {
-  const app = createApp({ config, db: {} as Db, clientDir: path.join(process.cwd(), "docs") });
+  const app = createApp({ config, db: {} as Db, labDb: {} as Db, clientDir: path.join(process.cwd(), "docs") });
   app.get("/api/test-error", async () => {
     throw new Error("数据库查询失败");
   });

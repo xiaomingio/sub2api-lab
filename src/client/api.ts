@@ -2,7 +2,7 @@
  * 文件说明: 封装 React 管理台调用 Fastify JSON API 的请求与错误处理。
  */
 
-import type { DashboardData, RestoreResult, UsageAnalysisData, UsageQuery, UsageRecordsData, UsageRecordFilterOptions } from "./types.js";
+import type { DashboardData, QuotaSnapshotsData, RestoreResult, UsageAnalysisData, UsageQuery, UsageRecordsData, UsageRecordFilterOptions } from "./types.js";
 
 function apiPath(path: string): string {
   return path.replace(/^\/+/, "");
@@ -126,6 +126,14 @@ export async function fetchUsageAnalysis(query: UsageQuery, granularity: "hour" 
   }
   const response = await fetch(`${apiPath("api/usage-analysis")}?${params}`, { credentials: "same-origin" });
   return parseJsonResponse<UsageAnalysisData>(response);
+}
+
+export async function fetchQuotaSnapshots(query: UsageQuery, resetsOnly = false): Promise<QuotaSnapshotsData> {
+  const params = new URLSearchParams({ preset: query.preset || "last_7_days", resets_only: String(resetsOnly) });
+  if (query.startDate) params.set("start_date", query.startDate);
+  if (query.endDate) params.set("end_date", query.endDate);
+  const response = await fetch(`${apiPath("api/quota-snapshots")}?${params}`, { credentials: "same-origin" });
+  return parseJsonResponse<QuotaSnapshotsData>(response);
 }
 
 export async function restoreBalances(params: {

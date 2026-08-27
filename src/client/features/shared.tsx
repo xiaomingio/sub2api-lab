@@ -18,18 +18,25 @@ import type { ActualCostCurrency } from "../format.js";
 import type { DashboardData, DashboardTab, RestoreResult, UsageQuery, UsageRecordsData } from "../types.js";
 
 const tabLabels: Record<DashboardTab, string> = {
-  usage: "用量统计",
-  records: "使用记录",
+  quotaTrend: "额度趋势",
   quota: "额度分析",
+  records: "使用记录",
+  usage: "用量统计",
   allocation: "成本分摊",
   balance: "余额设置"
 };
 
-const defaultRangePresets = {
-  usage: "last_24_hours",
+const defaultRangePresets: { default: string } & Partial<Record<DashboardTab, string>> = {
+  default: "last_7_days",
+  quotaTrend: "last_30_days",
+  quota: "last_7_days",
   records: "last_7_days",
-  quota: "last_7_days"
-} as const;
+  usage: "last_24_hours"
+};
+
+function defaultPresetForTab(tab: DashboardTab): string {
+  return defaultRangePresets[tab] || defaultRangePresets.default;
+}
 
 const sortHeaders: Array<{ key: UsageSortKey; label: string; numeric?: boolean }> = [
   { key: "user", label: "用户" },
@@ -88,11 +95,11 @@ type AllocationColumn = {
 
 function initialTab(): DashboardTab {
   const tab = new URLSearchParams(window.location.search).get("tab");
-  return tab === "allocation" || tab === "balance" || tab === "records" || tab === "quota" ? tab : "usage";
+  return tab === "quotaTrend" || tab === "allocation" || tab === "balance" || tab === "records" || tab === "quota" ? tab : "quotaTrend";
 }
 
 function initialUsageQuery(defaultPreset: string, useUrlPreset = true): UsageQuery {
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(useUrlPreset ? window.location.search : "");
   const allocationBasis = params.get("allocation_basis");
   return {
     preset: useUrlPreset ? params.get("preset") || defaultPreset : defaultPreset,
@@ -164,7 +171,7 @@ function compareAccountsByName(left: BalanceAccount, right: BalanceAccount): num
 function updateUrl(tab: DashboardTab, usageQuery: UsageQuery) {
   const params = new URLSearchParams();
   params.set("tab", tab);
-  if (tab === "usage" || tab === "allocation" || tab === "quota") {
+  if (tab === "usage" || tab === "allocation" || tab === "quota" || tab === "quotaTrend") {
     if (usageQuery.preset) params.set("preset", usageQuery.preset);
     if (usageQuery.startDate) params.set("start_date", usageQuery.startDate);
     if (usageQuery.endDate) params.set("end_date", usageQuery.endDate);
@@ -461,7 +468,7 @@ export {
   allocationBasisOptions,
   allocationBasisSortKey,
   allocationSelectionKey,
-  defaultRangePresets,
+  defaultPresetForTab,
   compareAccountsByName,
   compareAllocationRows,
   compareZeroCurrentBalanceLast,

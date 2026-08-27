@@ -1,6 +1,6 @@
 /*
  * 文件说明: 额度分析一级 Tab，展示全量最近 7 天的本地 Token、费用和账号分析。
- * 说明: 上游窗口数据来自 accounts.extra 的数据库快照，不调用上游账号。
+ * 说明: 上游窗口数据直接读取 Sub2API 原始数据库中的 accounts.extra，不调用上游账号。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -13,14 +13,13 @@ import { LoadingSection } from "../components/LoadingSection.js";
 import { formatAnalysisCost, formatDateTime, formatInteger, formatTokenAmount } from "../format.js";
 import { resolveDateRange } from "../../shared/ranges.js";
 import type { DashboardData, UsageAnalysisData, UsageQuery } from "../types.js";
-import { defaultRangePresets } from "./shared.js";
+import { defaultPresetForTab } from "./shared.js";
 
 type ChartType = "stacked" | "line";
 
-export function QuotaAnalysisTab(props: { data: DashboardData; analysisCache: Map<string, UsageAnalysisData> }) {
+export function QuotaAnalysisTab(props: { data: DashboardData; query: UsageQuery; onQueryChange: (query: UsageQuery) => void; analysisCache: Map<string, UsageAnalysisData> }) {
   const [granularity, setGranularity] = useState<"hour" | "day">("hour");
-  const [quotaQuery, setQuotaQuery] = useState<UsageQuery>({ preset: defaultRangePresets.quota });
-  const initialRequestKey = JSON.stringify([{ preset: defaultRangePresets.quota }, "hour"]);
+  const initialRequestKey = JSON.stringify([{ preset: defaultPresetForTab("quota") }, "hour"]);
   const [analysis, setAnalysis] = useState<UsageAnalysisData | null>(() => props.analysisCache.get(initialRequestKey) || null);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [accountSearch, setAccountSearch] = useState("");
@@ -31,7 +30,7 @@ export function QuotaAnalysisTab(props: { data: DashboardData; analysisCache: Ma
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   useEffect(() => {
-    const requestKey = JSON.stringify([quotaQuery, granularity]);
+    const requestKey = JSON.stringify([props.query, granularity]);
     const cachedAnalysis = props.analysisCache.get(requestKey);
     if (cachedAnalysis) {
       setAnalysis(cachedAnalysis);
@@ -39,11 +38,11 @@ export function QuotaAnalysisTab(props: { data: DashboardData; analysisCache: Ma
       return;
     }
     setLoading(true); setError("");
-    void fetchUsageAnalysis({ ...quotaQuery, recordUserIds: [], recordAccountIds: [], recordInboundEndpoints: [], recordGroupIds: [], recordBillingTypes: [] }, granularity, false)
+    void fetchUsageAnalysis({ ...props.query, recordUserIds: [], recordAccountIds: [], recordInboundEndpoints: [], recordGroupIds: [], recordBillingTypes: [] }, granularity, false)
       .then((result) => { props.analysisCache.set(requestKey, result); setAnalysis(result); if (selectedAccountId && !result.quota.accounts.some((account) => account.accountId === selectedAccountId)) setSelectedAccountId(null); })
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "加载额度分析失败。"))
       .finally(() => setLoading(false));
-  }, [granularity, props.analysisCache, quotaQuery, selectedAccountId]);
+  }, [granularity, props.analysisCache, props.query, selectedAccountId]);
   const accounts = analysis?.quota.accounts || [];
   const visibleAccounts = useMemo(() => accounts.filter((account) => `${account.name} ${account.platform} ${account.accountId}`.toLowerCase().includes(accountSearch.trim().toLowerCase())), [accounts, accountSearch]);
   const selectedAccount = accounts.find((account) => account.accountId === selectedAccountId) || null;
@@ -51,9 +50,9 @@ export function QuotaAnalysisTab(props: { data: DashboardData; analysisCache: Ma
   const quotaUserLabels = analysis?.quota.buckets || [];
   const quotaUserTokenSeries = useMemo(() => userSeries(filteredUserSeries, "tokens", quotaUserLabels), [filteredUserSeries, quotaUserLabels]);
   const quotaUserCostSeries = useMemo(() => userSeries(filteredUserSeries, userCostBasis, quotaUserLabels), [filteredUserSeries, userCostBasis, quotaUserLabels]);
-  const quotaRange = analysis?.range || serializeRange(defaultRangePresets.quota, props.data.timezone);
+  const quotaRange = analysis?.range || serializeRange(props.query.preset || defaultPresetForTab("quota"), props.data.timezone);
   return <>
-    <section className="card quota-analysis-toolbar" aria-label="额度分析筛选"><div className="card-body card-body-horizontal"><DateRangePicker range={quotaRange} timezone={props.data.timezone} onChange={(change) => setQuotaQuery((query) => ({ ...query, ...change }))} /><div className="quota-granularity"><span>粒度</span><div className="segmented-control"><button className={granularity === "hour" ? "is-active" : ""} type="button" onClick={() => setGranularity("hour")}>小时</button><button className={granularity === "day" ? "is-active" : ""} type="button" onClick={() => setGranularity("day")}>每天</button></div></div></div></section>
+    <section className="card quota-analysis-toolbar" aria-label="额度分析筛选"><div className="card-body card-body-horizontal"><DateRangePicker range={quotaRange} timezone={props.data.timezone} onChange={(change) => props.onQueryChange({ ...props.query, ...change })} /><div className="quota-granularity"><span>粒度</span><div className="segmented-control"><button className={granularity === "hour" ? "is-active" : ""} type="button" onClick={() => setGranularity("hour")}>小时</button><button className={granularity === "day" ? "is-active" : ""} type="button" onClick={() => setGranularity("day")}>每天</button></div></div></div></section>
     {error ? <div className="status-message is-error">{error}</div> : null}
     {loading && !analysis ? <LoadingSection /> : null}
     <>

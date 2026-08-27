@@ -11,13 +11,14 @@ import path from "node:path";
 import { defaultActualCost, defaultInitialBalance, listBalanceAccounts, normalizeInitialBalance } from "../shared/allocation.js";
 import type { BalanceAccount } from "../shared/allocation.js";
 import type { AppConfig } from "./config.js";
-import type { Db } from "./db.js";
+import type { Db, LabDb } from "./db.js";
 import { resolveDateRange, resolveDateTimeRange } from "../shared/ranges.js";
 import { createSub2APIAdminClient, restoreSelectedUserBalances } from "./sub2api-admin.js";
 import { getUserUsageSummary } from "../shared/usage.js";
 import { getUsageCostBasisReport, listUpstreamAccounts, normalizeAllocationBasis, parseAccountIds } from "../shared/usage-costs.js";
 import { getUsageRecordFilterOptions, getUsageRecords } from "./usage-records.js";
 import { getUsageAnalysis } from "./usage-analysis.js";
+import { listQuotaSnapshots } from "./quota-snapshots.js";
 import { registerRoutes } from "./routes.js";
 
 type UsageQuery = {
@@ -44,6 +45,7 @@ type UsageQuery = {
   group_ids?: string | string[];
   billing_types?: string | string[];
   granularity?: string;
+  resets_only?: string;
 };
 
 type RestoreRequestBody = {
@@ -54,6 +56,7 @@ type RestoreRequestBody = {
 type AppOptions = {
   config: AppConfig;
   db: Db;
+  labDb: LabDb;
   clientDir: string;
 };
 
@@ -85,7 +88,7 @@ function parseBodyUserIds(value: unknown): number[] | null {
   return [...new Set(ids)];
 }
 
-export function createHandlers({ config, db, clientDir }: AppOptions) {
+export function createHandlers({ config, db, labDb, clientDir }: AppOptions) {
   const restoreClient = config.sub2api.adminApiKey
     ? createSub2APIAdminClient({ baseUrl: config.sub2api.baseUrl, adminApiKey: config.sub2api.adminApiKey })
     : null;
@@ -187,6 +190,15 @@ export function createHandlers({ config, db, clientDir }: AppOptions) {
     return getUsageAnalysis({ db, range, timezone: config.timezone, granularity, filters: { userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), models: parseQueryList(query.models), upstreamEndpoints: parseQueryList(query.upstream_endpoints), billingModes: parseQueryList(query.billing_modes), requestTypes: parseQueryList(query.request_types), apiKeyIds: parseQueryList(query.api_key_ids), upstreamModelMismatch: parseQueryList(query.upstream_model_mismatch), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) } });
   }
 
+  async function quotaSnapshotsApi(request: FastifyRequest) {
+    const query = request.query as UsageQuery;
+    const range = resolveDateRange({ preset: query.preset || "last_7_days", startDate: query.start_date, endDate: query.end_date, timezone: config.timezone, defaultPreset: "last_7_days" });
+    return {
+      range: { start: range.start.toISOString(), end: range.end.toISOString(), startDate: range.startDate, endDate: range.endDate },
+      snapshots: await listQuotaSnapshots({ labDb, start: range.start, end: range.end, accountIds: parseQueryList(query.account_ids).map(Number), resetsOnly: query.resets_only === "true" })
+    };
+  }
+
   async function restoreBalanceApi(request: FastifyRequest, reply: FastifyReply) {
     if (!restoreClient) return reply.code(503).send({ error: "未配置 Sub2API 管理员 API Key，不能执行余额设置" });
     const body = request.body as RestoreRequestBody;
@@ -213,7 +225,7 @@ export function createHandlers({ config, db, clientDir }: AppOptions) {
     return { targetBalance, selectedUserIds: userIds, ...result };
   }
 
-  return { dashboardApi, usageApi, usageRecordsApi, usageRecordFilterOptionsApi, usageAnalysisApi, sendHtml, restoreBalanceApi };
+  return { dashboardApi, usageApi, usageRecordsApi, usageRecordFilterOptionsApi, usageAnalysisApi, quotaSnapshotsApi, sendHtml, restoreBalanceApi };
 }
 
 function parseQueryList(value: string | string[] | undefined): string[] {
