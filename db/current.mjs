@@ -5,7 +5,7 @@
 
 export async function up(client) {
   await client.query(`
-    CREATE TABLE sub2api_lab_quota_snapshots (
+    CREATE TABLE quota_snapshots (
       id bigserial PRIMARY KEY,
       sampled_at timestamptz NOT NULL,
       account_id bigint NOT NULL,
@@ -23,9 +23,9 @@ export async function up(client) {
     )
   `);
   await client.query(
-    "CREATE INDEX sub2api_lab_quota_snapshots_account_sampled_idx ON sub2api_lab_quota_snapshots (account_id, sampled_at DESC)"
+    "CREATE INDEX quota_snapshots_account_sampled_idx ON quota_snapshots (account_id, sampled_at DESC)"
   );
   await client.query(
-    "CREATE INDEX sub2api_lab_quota_snapshots_reset_sampled_idx ON sub2api_lab_quota_snapshots (is_reset, sampled_at DESC)"
+    "CREATE INDEX quota_snapshots_reset_sampled_idx ON quota_snapshots (is_reset, sampled_at DESC)"
   );
 }

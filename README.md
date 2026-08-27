@@ -103,7 +103,7 @@ npm run build
 npm run db:migrate
 ```
 
-迁移使用 `@xiaomingio/tiny-db-migrate`，会创建 `sub2api_lab_quota_snapshots` 表。应用运行时每个配置时区的整点读取 Sub2API `accounts.extra`，将 7 天使用率保存为小时快照，不调用 Sub2API 额度刷新接口。应用启动不会自动执行迁移，数据库管理员应先完成迁移，再启动应用。
+迁移使用 `@xiaomingio/tiny-db-migrate`，会创建 `quota_snapshots` 表。应用运行时每个配置时区的整点读取 Sub2API `accounts.extra`，将 7 天使用率保存为小时快照，不调用 Sub2API 额度刷新接口。应用启动不会自动执行迁移，数据库管理员应先完成迁移，再启动应用。
 
 登录凭据属于 Sub2API Lab，与 Sub2API 用户账号无关。未登录访问会进入登录页；生产环境请使用独立的强密码。
 

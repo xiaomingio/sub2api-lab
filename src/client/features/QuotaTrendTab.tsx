@@ -15,6 +15,13 @@ import type { DashboardData, QuotaSnapshot, UsageAnalysisData, UsageQuery } from
 import { fetchUsageAnalysis } from "../api.js";
 import { defaultPresetForTab } from "./shared.js";
 
+type TrendTooltipParam = {
+  axisValueLabel?: string;
+  marker?: string;
+  seriesName?: string;
+  value?: number | string | null;
+};
+
 export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; onQueryChange: (query: UsageQuery) => void }) {
   const query = props.query;
   const [snapshots, setSnapshots] = useState<QuotaSnapshot[]>([]);
@@ -69,7 +76,17 @@ function QuotaTrendChart(props: { snapshots: QuotaSnapshot[]; timezone: string }
     rows.forEach((row) => rowsByAccount.set(row.accountId, [...(rowsByAccount.get(row.accountId) || []), row]));
     const colors = ["#2563eb", "#059669", "#d97706", "#e11d48", "#7c3aed", "#64748b"];
     chart.setOption({
-      tooltip: { trigger: "axis", valueFormatter: (value: number | null) => value === null ? "暂无数据" : `${value.toFixed(2)}%` },
+      tooltip: {
+        trigger: "axis",
+        formatter: (params: TrendTooltipParam | TrendTooltipParam[]) => {
+          const items = Array.isArray(params) ? params : [params];
+          const title = items[0]?.axisValueLabel || "";
+          const values = items
+            .filter((item) => item.value !== null && item.value !== undefined)
+            .map((item) => `${item.marker || ""}${item.seriesName || "账号"}: ${Number(item.value).toFixed(2)}%`);
+          return [title, ...values].filter(Boolean).join("<br/>");
+        }
+      },
       legend: { type: "scroll", top: 4, left: 4, right: 4, textStyle: { color: "#60716f", fontSize: 10 } },
       grid: { top: 42, right: 24, bottom: 54, left: 52 },
       xAxis: { type: "category", data: labels, axisLabel: { hideOverlap: true } },

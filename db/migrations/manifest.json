@@ -1,5 +1,10 @@
 {
   "baselineVersion": 1,
-  "schemaVersion": 1,
-  "migrations": []
+  "schemaVersion": 2,
+  "migrations": [
+    {
+      "version": 2,
+      "file": "20260827-rename-quota-snapshots.mjs"
+    }
+  ]
 }

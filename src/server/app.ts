@@ -235,7 +235,7 @@ function parseQueryList(value: string | string[] | undefined): string[] {
 type RouteHandlers = ReturnType<typeof createHandlers>;
 
 export function createApp(options: AppOptions): FastifyInstance {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: { level: "warn" } });
   app.setErrorHandler((error, request, reply) => {
     const statusCode = errorStatusCode(error);
     request.log.error({ err: error }, "HTTP request failed");

@@ -69,13 +69,13 @@ export async function recordQuotaSnapshot(params: { sourceDb: Db; labDb: LabDb; 
     await client.query("BEGIN");
     for (const row of source.rows) {
       const previous = await client.query<{ seven_day_used_percent: string | null }>(
-        "SELECT seven_day_used_percent FROM sub2api_lab_quota_snapshots WHERE account_id = $1 AND sampled_at < $2 ORDER BY sampled_at DESC LIMIT 1",
+        "SELECT seven_day_used_percent FROM quota_snapshots WHERE account_id = $1 AND sampled_at < $2 ORDER BY sampled_at DESC LIMIT 1",
         [row.account_id, params.sampledAt]
       );
       const previousPercent = previous.rows[0]?.seven_day_used_percent ?? null;
       const isReset = row.seven_day_used_percent !== null && previousPercent !== null && Number(row.seven_day_used_percent) < Number(previousPercent);
       const result = await client.query(
-        `INSERT INTO sub2api_lab_quota_snapshots (sampled_at, account_id, account_name, platform, five_hour_used_percent, seven_day_used_percent, five_hour_reset_at, seven_day_reset_at, sub2api_usage_updated_at, previous_seven_day_used_percent, is_reset)
+        `INSERT INTO quota_snapshots (sampled_at, account_id, account_name, platform, five_hour_used_percent, seven_day_used_percent, five_hour_reset_at, seven_day_reset_at, sub2api_usage_updated_at, previous_seven_day_used_percent, is_reset)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (sampled_at, account_id) DO NOTHING`,
         [params.sampledAt, row.account_id, row.account_name, row.platform, row.five_hour_used_percent, row.seven_day_used_percent, row.five_hour_reset_at, row.seven_day_reset_at, row.sub2api_usage_updated_at, previousPercent, isReset]
@@ -98,7 +98,7 @@ export async function listQuotaSnapshots(params: { labDb: LabDb; start: Date; en
   if (params.accountIds?.length) { values.push(params.accountIds); conditions.push(`account_id = ANY($${values.length}::bigint[])`); }
   if (params.resetsOnly) conditions.push("is_reset = true");
   values.push(Math.min(Math.max(params.limit || 1000, 1), 10_000));
-  const result = await params.labDb.pool.query<SnapshotRow>(`SELECT id, sampled_at, account_id, account_name, platform, five_hour_used_percent, seven_day_used_percent, five_hour_reset_at, seven_day_reset_at, sub2api_usage_updated_at, previous_seven_day_used_percent, is_reset FROM sub2api_lab_quota_snapshots WHERE ${conditions.join(" AND ")} ORDER BY sampled_at DESC, account_id LIMIT $${values.length}`, values);
+  const result = await params.labDb.pool.query<SnapshotRow>(`SELECT id, sampled_at, account_id, account_name, platform, five_hour_used_percent, seven_day_used_percent, five_hour_reset_at, seven_day_reset_at, sub2api_usage_updated_at, previous_seven_day_used_percent, is_reset FROM quota_snapshots WHERE ${conditions.join(" AND ")} ORDER BY sampled_at DESC, account_id LIMIT $${values.length}`, values);
   return result.rows.map(snapshot);
 }
 
