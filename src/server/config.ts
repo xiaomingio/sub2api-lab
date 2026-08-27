@@ -16,7 +16,7 @@ type AppConfig = {
     adminApiKey: string;
   };
   databaseUrl: string;
-  labDatabaseUrl: string;
+  databaseUrlSub2Api: string;
 };
 
 function getEnv(name: string, fallback = ""): string {
@@ -56,19 +56,14 @@ function getDatabaseUrl(): string {
   return value;
 }
 
-function getLabDatabaseUrl(databaseUrl: string): string {
-  const configured = getEnv("SUB2API_LAB_DATABASE_URL");
-  if (configured) {
-    try {
-      new URL(configured);
-    } catch {
-      throw new Error("Invalid SUB2API_LAB_DATABASE_URL");
-    }
-    return configured;
+function getSub2ApiDatabaseUrl(): string {
+  const value = getRequiredEnv("DATABASE_URL_SUB2API");
+  try {
+    new URL(value);
+  } catch {
+    throw new Error("Invalid DATABASE_URL_SUB2API");
   }
-  const url = new URL(databaseUrl);
-  url.pathname = "/sub2api_lab";
-  return url.toString();
+  return value;
 }
 
 export function loadConfig(): AppConfig {
@@ -87,7 +82,7 @@ export function loadConfig(): AppConfig {
       adminApiKey: getEnv("SUB2API_ADMIN_API_KEY")
     },
     databaseUrl,
-    labDatabaseUrl: getLabDatabaseUrl(databaseUrl)
+    databaseUrlSub2Api: getSub2ApiDatabaseUrl()
   };
 }
 

@@ -38,8 +38,8 @@ function shouldUseSsl(databaseUrl: string): boolean {
 
 export async function createDb(config: AppConfig): Promise<Db> {
   const pool = new pg.Pool({
-    connectionString: config.databaseUrl,
-    ssl: shouldUseSsl(config.databaseUrl) ? { rejectUnauthorized: false } : false,
+    connectionString: config.databaseUrlSub2Api,
+    ssl: shouldUseSsl(config.databaseUrlSub2Api) ? { rejectUnauthorized: false } : false,
     max: 20,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 30_000
@@ -65,8 +65,8 @@ export async function createDb(config: AppConfig): Promise<Db> {
 
 export function createLabDb(config: AppConfig): LabDb {
   const pool = new pg.Pool({
-    connectionString: config.labDatabaseUrl,
-    ssl: shouldUseSsl(config.labDatabaseUrl) ? { rejectUnauthorized: false } : false,
+    connectionString: config.databaseUrl,
+    ssl: shouldUseSsl(config.databaseUrl) ? { rejectUnauthorized: false } : false,
     max: 5,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 30_000

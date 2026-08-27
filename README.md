@@ -57,7 +57,7 @@ npm ci
 cp .env.example .env.development
 ```
 
-编辑 `.env.development`，至少填写 `SUB2API_LAB_AUTH_USER`、`SUB2API_LAB_AUTH_PASSWORD` 和 `DATABASE_URL`，然后启动服务：
+编辑 `.env.development`，至少填写 `SUB2API_LAB_AUTH_USER`、`SUB2API_LAB_AUTH_PASSWORD`、`DATABASE_URL` 和 `DATABASE_URL_SUB2API`，然后启动服务：
 
 ```bash
 npm run dev
@@ -73,8 +73,8 @@ npm run dev
 | --- | --- | --- |
 | `SUB2API_LAB_AUTH_USER` | 是 | Sub2API Lab 登录用户名，由部署者设置 |
 | `SUB2API_LAB_AUTH_PASSWORD` | 是 | Sub2API Lab 登录密码，由部署者设置 |
-| `DATABASE_URL` | 是 | Sub2API PostgreSQL 连接串 |
-| `SUB2API_LAB_DATABASE_URL` | 否 | 独立统计库连接串；省略时沿用 `DATABASE_URL` 的连接用户、主机和端口，仅将数据库名改为 `sub2api_lab` |
+| `DATABASE_URL` | 是 | Sub2API Lab PostgreSQL 连接串；也是 TinyDB migration 的目标库 |
+| `DATABASE_URL_SUB2API` | 是 | Sub2API 主库 PostgreSQL 连接串，用于读取 usage、账号和余额 |
 | `SUB2API_LAB_HOST` | 否 | 监听地址，默认为 `127.0.0.1` |
 | `SUB2API_LAB_PORT` | 否 | 监听端口，默认为 `9100` |
 | `SUB2API_LAB_BASE_PATH` | 否 | 挂载子路径，默认使用根路径 |
@@ -85,14 +85,15 @@ npm run dev
 `DATABASE_URL` 格式如下：
 
 ```dotenv
-DATABASE_URL=postgresql://用户名:密码@数据库地址:端口/数据库名?sslmode=disable
+DATABASE_URL=postgresql://用户名:密码@数据库地址:端口/sub2api_lab?sslmode=disable
+DATABASE_URL_SUB2API=postgresql://只读用户名:密码@数据库地址:端口/sub2api?sslmode=disable
 ```
 
-额度趋势使用独立的 `sub2api_lab` 数据库。首次部署时由数据库管理员创建该数据库，并让 `DATABASE_URL` 使用的同一用户可以连接和写入：
+额度趋势使用独立的 `sub2api_lab` 数据库。首次部署时由数据库管理员创建该数据库，并让 `DATABASE_URL` 使用的用户可以连接和写入：
 
 ```sql
-CREATE DATABASE sub2api_lab OWNER 当前应用数据库用户;
-GRANT CONNECT ON DATABASE sub2api_lab TO 当前应用数据库用户;
+CREATE DATABASE sub2api_lab OWNER Lab 应用数据库用户;
+GRANT CONNECT ON DATABASE sub2api_lab TO Lab 应用数据库用户;
 ```
 
 切换到 `sub2api_lab` 后执行应用迁移：

@@ -19,8 +19,8 @@ const config: AppConfig = {
   defaultRange: "last_14_days",
   maxRows: 100,
   sub2api: { baseUrl: "http://127.0.0.1:8080", adminApiKey: "" },
-  databaseUrl: "postgres://localhost/test",
-  labDatabaseUrl: "postgres://localhost/sub2api_lab"
+  databaseUrl: "postgres://localhost/sub2api_lab",
+  databaseUrlSub2Api: "postgres://localhost/test"
 };
 
 test("API 服务器异常会返回错误详情但不返回堆栈", async () => {
