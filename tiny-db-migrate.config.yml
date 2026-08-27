@@ -1,0 +1,4 @@
+# 文件说明: 指向 Sub2API Lab 的当前 Schema 和正式迁移目录。
+
+migrations: db/migrations
+current: db/current.mjs

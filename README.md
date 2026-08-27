@@ -102,7 +102,7 @@ npm run build
 npm run db:migrate
 ```
 
-迁移会创建 `sub2api_lab_quota_snapshots` 表。应用运行时每个配置时区的整点读取 Sub2API `accounts.extra`，将 7 天使用率保存为小时快照，不调用 Sub2API 额度刷新接口。应用启动不会自动执行迁移，数据库管理员应先完成迁移，再启动应用。
+迁移使用 `@xiaomingio/tiny-db-migrate`，会创建 `sub2api_lab_quota_snapshots` 表。应用运行时每个配置时区的整点读取 Sub2API `accounts.extra`，将 7 天使用率保存为小时快照，不调用 Sub2API 额度刷新接口。应用启动不会自动执行迁移，数据库管理员应先完成迁移，再启动应用。
 
 登录凭据属于 Sub2API Lab，与 Sub2API 用户账号无关。未登录访问会进入登录页；生产环境请使用独立的强密码。
 
@@ -133,6 +133,7 @@ Sub2API 可以在「系统设置 → 通用设置 → 自定义菜单页面」�
 | 命令 | 用途 |
 | --- | --- |
 | `npm run dev` | 构建前端资源并以源码 watch 模式启动本地服务 |
+| `npm run db:migrate:dev` | 使用 `.env.development` 执行本地数据库迁移 |
 | `npm test` | 运行成本分摊和 Sub2API 写入请求测试 |
 | `npm run typecheck` | 检查服务端、客户端和测试 TypeScript 类型 |
 | `npm run build` | 构建前端资源并编译服务端代码 |
@@ -175,7 +176,7 @@ npm run build
 
 ```bash
 rsync -az --delete dist/ sub2api-lab-production:/opt/sub2api-lab/dist/
-rsync -az package.json package-lock.json ecosystem.config.cjs .env.production \
+rsync -az package.json package-lock.json tiny-db-migrate.config.yml db/ ecosystem.config.cjs .env.production \
   sub2api-lab-production:/opt/sub2api-lab/
 ```
 
@@ -185,6 +186,8 @@ rsync -az package.json package-lock.json ecosystem.config.cjs .env.production \
 ssh sub2api-lab-production
 cd /opt/sub2api-lab
 npm install --omit=dev
+pm2 stop sub2api-lab
+npm run db:migrate
 pm2 startOrReload ecosystem.config.cjs --only sub2api-lab
 pm2 save
 ```

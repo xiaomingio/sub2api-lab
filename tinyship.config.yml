@@ -9,6 +9,8 @@ hosts:
       - dist/
       - package.json
       - package-lock.json
+      - tiny-db-migrate.config.yml
+      - db/
       - ecosystem.config.cjs
       - tinyship.config.yml
       - .env.production
@@ -17,5 +19,7 @@ services:
   sub2api-lab:
     host: production-host
     npmInstall: true
+    stopForPreCommand: true
+    preCommand:
+      - npm run db:migrate
     pm2Restart: true
-    postCommand: []
