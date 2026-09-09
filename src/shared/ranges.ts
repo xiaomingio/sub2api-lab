@@ -143,8 +143,7 @@ function fromDateKey(dateKey: string, timezone: string): Date {
   return utcFromZonedDate(year, month, day, timezone);
 }
 
-function defaultDateTimeRangeStart(timezone: string): Date {
-  const now = new Date();
+function defaultDateTimeRangeStart(timezone: string, now: Date): Date {
   const todayParts = zonedDateParts(now, timezone);
   const todayStart = utcFromZonedDate(todayParts.year, todayParts.month, todayParts.day, timezone);
   return addDays(todayStart, -30);
@@ -165,10 +164,11 @@ export function resolveDateRange(params: {
   endDate?: string;
   timezone: string;
   defaultPreset: string;
+  now?: Date;
 }): DateRange {
   const allowed = new Set(Object.keys(presetLabels));
   const preset = (allowed.has(params.preset || "") ? params.preset : params.defaultPreset) as RangePreset;
-  const now = new Date();
+  const now = params.now ? new Date(params.now) : new Date();
   const todayParts = zonedDateParts(now, params.timezone);
   const todayStart = utcFromZonedDate(todayParts.year, todayParts.month, todayParts.day, params.timezone);
   const tomorrowStart = addDays(todayStart, 1);
@@ -224,8 +224,10 @@ export function resolveDateTimeRange(params: {
   endAt?: string;
   timezone: string;
   fallback: Pick<DateRange, "start" | "end">;
+  now?: Date;
 }): DateTimeRange {
-  const fallbackStartAt = formatDateTimeInputKey(defaultDateTimeRangeStart(params.timezone), params.timezone);
+  const now = params.now ? new Date(params.now) : new Date();
+  const fallbackStartAt = formatDateTimeInputKey(defaultDateTimeRangeStart(params.timezone, now), params.timezone);
   const fallbackEndAt = formatDateTimeInputKey(params.fallback.end, params.timezone);
   const startAt = parseDateTimeInput(params.startAt, fallbackStartAt);
   const endAt = parseDateTimeInput(params.endAt, fallbackEndAt);

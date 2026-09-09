@@ -68,12 +68,16 @@ export async function recordQuotaSnapshot(params: { sourceDb: Db; labDb: LabDb; 
   try {
     await client.query("BEGIN");
     for (const row of source.rows) {
-      const previous = await client.query<{ seven_day_used_percent: string | null }>(
-        "SELECT seven_day_used_percent FROM quota_snapshots WHERE account_id = $1 AND sampled_at < $2 ORDER BY sampled_at DESC LIMIT 1",
+      const previous = await client.query<{ seven_day_used_percent: string | null; seven_day_reset_at: string | null }>(
+        "SELECT seven_day_used_percent, seven_day_reset_at FROM quota_snapshots WHERE account_id = $1 AND sampled_at < $2 ORDER BY sampled_at DESC LIMIT 1",
         [row.account_id, params.sampledAt]
       );
       const previousPercent = previous.rows[0]?.seven_day_used_percent ?? null;
-      const isReset = row.seven_day_used_percent !== null && previousPercent !== null && Number(row.seven_day_used_percent) < Number(previousPercent);
+      const previousResetAt = previous.rows[0]?.seven_day_reset_at ? Date.parse(previous.rows[0].seven_day_reset_at) : NaN;
+      const currentResetAt = row.seven_day_reset_at ? Date.parse(row.seven_day_reset_at) : NaN;
+      const isReset = row.seven_day_used_percent !== null && previousPercent !== null
+        && Number(row.seven_day_used_percent) < Number(previousPercent)
+        && Number.isFinite(previousResetAt) && Number.isFinite(currentResetAt) && currentResetAt > previousResetAt;
       const result = await client.query(
         `INSERT INTO quota_snapshots (sampled_at, account_id, account_name, platform, five_hour_used_percent, seven_day_used_percent, five_hour_reset_at, seven_day_reset_at, sub2api_usage_updated_at, previous_seven_day_used_percent, is_reset)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)

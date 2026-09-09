@@ -20,6 +20,7 @@ import { getUsageRecordFilterOptions, getUsageRecords } from "./usage-records.js
 import { getUsageAnalysis } from "./usage-analysis.js";
 import { listQuotaSnapshots } from "./quota-snapshots.js";
 import { registerRoutes } from "./routes.js";
+import { getCurrentTime } from "./clock.js";
 
 type UsageQuery = {
   preset?: string;
@@ -100,19 +101,22 @@ export function createHandlers({ config, db, labDb, clientDir }: AppOptions) {
 
   async function dashboardApi(request: FastifyRequest) {
     const query = request.query as UsageQuery;
+    const now = getCurrentTime(config.fakeNow);
     const range = resolveDateRange({
       preset: query.preset,
       startDate: query.start_date,
       endDate: query.end_date,
       timezone: config.timezone,
-      defaultPreset: config.defaultRange
+      defaultPreset: config.defaultRange,
+      now
     });
     const allocationBasis = normalizeAllocationBasis(query.allocation_basis);
     const allocationRange = resolveDateTimeRange({
       startAt: query.allocation_start_at,
       endAt: query.allocation_end_at,
       timezone: config.timezone,
-      fallback: range
+      fallback: range,
+      now
     });
     const allocationAccountIds = allocationBasis === "balance" ? [] : parseAccountIds(query.allocation_account_ids);
     const [usage, balanceAccounts, upstreamAccounts, allocationUsage] = await Promise.all([
@@ -127,6 +131,7 @@ export function createHandlers({ config, db, labDb, clientDir }: AppOptions) {
       basePath: config.basePath,
       timezone: config.timezone,
       maxRows: config.maxRows,
+      currentTime: now.toISOString(),
       defaults: { initialBalance: defaultInitialBalance, actualCost: defaultActualCost, restoreTargetBalance: defaultInitialBalance },
       restore: {
         enabled: Boolean(restoreClient),
@@ -142,12 +147,14 @@ export function createHandlers({ config, db, labDb, clientDir }: AppOptions) {
 
   async function usageApi(request: FastifyRequest) {
     const query = request.query as UsageQuery;
+    const now = getCurrentTime(config.fakeNow);
     const range = resolveDateRange({
       preset: query.preset,
       startDate: query.start_date,
       endDate: query.end_date,
       timezone: config.timezone,
-      defaultPreset: config.defaultRange
+      defaultPreset: config.defaultRange,
+      now
     });
     return getUserUsageSummary({
       db,
@@ -161,38 +168,44 @@ export function createHandlers({ config, db, labDb, clientDir }: AppOptions) {
 
   async function usageRecordsApi(request: FastifyRequest) {
     const query = request.query as UsageQuery;
+    const now = getCurrentTime(config.fakeNow);
     const range = resolveDateRange({
       preset: query.preset,
       startDate: query.start_date,
       endDate: query.end_date,
       timezone: config.timezone,
-      defaultPreset: config.defaultRange
+      defaultPreset: config.defaultRange,
+      now
     });
     return getUsageRecords({ db, range, limit: query.limit, page: query.page, defaultLimit: config.maxRows, userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), models: parseQueryList(query.models), upstreamEndpoints: parseQueryList(query.upstream_endpoints), billingModes: parseQueryList(query.billing_modes), requestTypes: parseQueryList(query.request_types), apiKeyIds: parseQueryList(query.api_key_ids), upstreamModelMismatch: parseQueryList(query.upstream_model_mismatch), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) });
   }
 
   async function usageRecordFilterOptionsApi(request: FastifyRequest) {
     const query = request.query as UsageQuery;
+    const now = getCurrentTime(config.fakeNow);
     const range = resolveDateRange({
       preset: query.preset,
       startDate: query.start_date,
       endDate: query.end_date,
       timezone: config.timezone,
-      defaultPreset: config.defaultRange
+      defaultPreset: config.defaultRange,
+      now
     });
     return getUsageRecordFilterOptions(db, range);
   }
 
   async function usageAnalysisApi(request: FastifyRequest) {
     const query = request.query as UsageQuery;
-    const range = resolveDateRange({ preset: query.preset || "last_7_days", startDate: query.start_date, endDate: query.end_date, timezone: config.timezone, defaultPreset: "last_7_days" });
+    const now = getCurrentTime(config.fakeNow);
+    const range = resolveDateRange({ preset: query.preset || "last_7_days", startDate: query.start_date, endDate: query.end_date, timezone: config.timezone, defaultPreset: "last_7_days", now });
     const granularity = query.granularity === "day" ? "day" : "hour";
-    return getUsageAnalysis({ db, range, timezone: config.timezone, granularity, filters: { userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), models: parseQueryList(query.models), upstreamEndpoints: parseQueryList(query.upstream_endpoints), billingModes: parseQueryList(query.billing_modes), requestTypes: parseQueryList(query.request_types), apiKeyIds: parseQueryList(query.api_key_ids), upstreamModelMismatch: parseQueryList(query.upstream_model_mismatch), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) } });
+    return getUsageAnalysis({ db, range, timezone: config.timezone, now, granularity, filters: { userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), models: parseQueryList(query.models), upstreamEndpoints: parseQueryList(query.upstream_endpoints), billingModes: parseQueryList(query.billing_modes), requestTypes: parseQueryList(query.request_types), apiKeyIds: parseQueryList(query.api_key_ids), upstreamModelMismatch: parseQueryList(query.upstream_model_mismatch), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) } });
   }
 
   async function quotaSnapshotsApi(request: FastifyRequest) {
     const query = request.query as UsageQuery;
-    const range = resolveDateRange({ preset: query.preset || "last_7_days", startDate: query.start_date, endDate: query.end_date, timezone: config.timezone, defaultPreset: "last_7_days" });
+    const now = getCurrentTime(config.fakeNow);
+    const range = resolveDateRange({ preset: query.preset || "last_7_days", startDate: query.start_date, endDate: query.end_date, timezone: config.timezone, defaultPreset: "last_7_days", now });
     return {
       range: { start: range.start.toISOString(), end: range.end.toISOString(), startDate: range.startDate, endDate: range.endDate },
       snapshots: await listQuotaSnapshots({ labDb, start: range.start, end: range.end, accountIds: parseQueryList(query.account_ids).map(Number), resetsOnly: query.resets_only === "true" })

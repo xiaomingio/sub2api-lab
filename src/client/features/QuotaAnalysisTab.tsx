@@ -51,7 +51,7 @@ export function QuotaAnalysisTab(props: { data: DashboardData; query: UsageQuery
   const quotaUserLabels = analysis?.quota.buckets || [];
   const quotaUserTokenSeries = useMemo(() => userSeries(filteredUserSeries, "tokens", quotaUserLabels), [filteredUserSeries, quotaUserLabels]);
   const quotaUserCostSeries = useMemo(() => userSeries(filteredUserSeries, userCostBasis, quotaUserLabels), [filteredUserSeries, userCostBasis, quotaUserLabels]);
-  const quotaRange = analysis?.range || serializeRange(props.query.preset || defaultPresetForTab("quota"), props.data.timezone);
+  const quotaRange = analysis?.range || serializeRange(props.query.preset || defaultPresetForTab("quota"), props.data.timezone, new Date(props.data.currentTime));
   return <>
     <section className="card quota-analysis-toolbar" aria-label="额度分析筛选"><div className="card-body card-body-horizontal"><DateRangePicker range={quotaRange} timezone={props.data.timezone} onChange={(change) => props.onQueryChange({ ...props.query, ...change })} /><div className="quota-granularity"><span>粒度</span><div className="segmented-control"><button className={granularity === "hour" ? "is-active" : ""} type="button" onClick={() => setGranularity("hour")}>小时</button><button className={granularity === "day" ? "is-active" : ""} type="button" onClick={() => setGranularity("day")}>每天</button></div></div></div></section>
     {error ? <div className="status-message is-error">{error}</div> : null}
@@ -65,8 +65,8 @@ export function QuotaAnalysisTab(props: { data: DashboardData; query: UsageQuery
   </>;
 }
 
-function serializeRange(preset: string, timezone: string) {
-  const range = resolveDateRange({ preset, timezone, defaultPreset: preset });
+function serializeRange(preset: string, timezone: string, now: Date) {
+  const range = resolveDateRange({ preset, timezone, defaultPreset: preset, now });
   return { ...range, start: range.start.toISOString(), end: range.end.toISOString() };
 }
 

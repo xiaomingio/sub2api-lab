@@ -14,6 +14,7 @@ const config: AppConfig = {
   port: 9100,
   basePath: "",
   timezone: "Asia/Shanghai",
+  fakeNow: null,
   authUser: "admin",
   authPassword: "password",
   defaultRange: "last_14_days",

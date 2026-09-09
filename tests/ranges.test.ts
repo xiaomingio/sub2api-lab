@@ -19,6 +19,18 @@ test("未指定时间范围时默认使用最近 14 天", () => {
   }
 });
 
+test("传入当前时间时使用固定时间计算默认范围", () => {
+  const range = resolveDateRange({
+    timezone: "Asia/Shanghai",
+    defaultPreset: "last_14_days",
+    now: new Date("2025-01-15T02:30:00.000Z")
+  });
+
+  assert.equal(range.startDate, "2025-01-02");
+  assert.equal(range.endDate, "2025-01-15");
+  assert.equal(range.end.toISOString(), "2025-01-15T16:00:00.000Z");
+});
+
 test("成本分摊开始时间默认是 30 天前的本地 0 点", () => {
   mock.timers.enable({ apis: ["Date"], now: new Date("2026-08-17T05:46:00.000Z") });
   try {

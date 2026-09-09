@@ -18,7 +18,7 @@ const labDb = createLabDb(config);
 const projectDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const app = createApp({ config, db, labDb, clientDir: path.join(projectDir, "dist/client") });
 const quotaSnapshotScheduler = createQuotaSnapshotScheduler({ sourceDb: db, labDb, timezone: config.timezone, log: (message, error) => error ? console.error(message, error) : console.log(message) });
-quotaSnapshotScheduler.start();
+if (!config.fakeNow) quotaSnapshotScheduler.start();
 
 const close = async () => {
   await app.close();

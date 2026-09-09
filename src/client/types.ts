@@ -43,6 +43,7 @@ type DashboardData = {
   title: string;
   basePath: string;
   timezone: string;
+  currentTime: string;
   maxRows: number;
   defaults: {
     initialBalance: string;

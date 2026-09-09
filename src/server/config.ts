@@ -7,6 +7,7 @@ type AppConfig = {
   port: number;
   basePath: string;
   timezone: string;
+  fakeNow: Date | null;
   authUser: string;
   authPassword: string;
   defaultRange: string;
@@ -43,6 +44,19 @@ function getIntegerEnv(name: string, fallback: number): number {
   return value;
 }
 
+function getFakeNow(): Date | null {
+  const value = getEnv("SUB2API_LAB_FAKE_NOW");
+  if (!value) return null;
+  if (process.env.NODE_ENV !== "development") {
+    throw new Error("SUB2API_LAB_FAKE_NOW is only allowed when NODE_ENV=development");
+  }
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    throw new Error("Invalid SUB2API_LAB_FAKE_NOW, expected an ISO date-time");
+  }
+  return parsed;
+}
+
 const defaultRange = "last_14_days";
 const maxRows = 1000;
 
@@ -73,6 +87,7 @@ export function loadConfig(): AppConfig {
     port: getIntegerEnv("SUB2API_LAB_PORT", 9100),
     basePath: normalizeBasePath(getEnv("SUB2API_LAB_BASE_PATH", "")),
     timezone: getEnv("SUB2API_LAB_TIMEZONE", "Asia/Shanghai"),
+    fakeNow: getFakeNow(),
     authUser: getRequiredEnv("SUB2API_LAB_AUTH_USER"),
     authPassword: getRequiredEnv("SUB2API_LAB_AUTH_PASSWORD"),
     defaultRange,

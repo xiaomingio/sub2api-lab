@@ -21,7 +21,7 @@ test("7 天使用率下降时记录重置及重置前使用率", async () => {
     pool: {
       async query() {
         return {
-          rows: [{ account_id: "42", account_name: "账号 42", platform: "openai", five_hour_used_percent: "10", seven_day_used_percent: "12", five_hour_reset_at: null, seven_day_reset_at: null, sub2api_usage_updated_at: "2026-08-27T02:59:00.000Z" }]
+          rows: [{ account_id: "42", account_name: "账号 42", platform: "openai", five_hour_used_percent: "10", seven_day_used_percent: "12", five_hour_reset_at: null, seven_day_reset_at: "2026-09-15T00:00:00.000Z", sub2api_usage_updated_at: "2026-08-27T02:59:00.000Z" }]
         };
       }
     }
@@ -29,7 +29,7 @@ test("7 天使用率下降时记录重置及重置前使用率", async () => {
   const client = {
     async query(text: string, values?: unknown[]) {
       targetQueries.push({ text, values });
-      if (text.startsWith("SELECT seven_day_used_percent")) return { rows: [{ seven_day_used_percent: "88" }] };
+      if (text.startsWith("SELECT seven_day_used_percent")) return { rows: [{ seven_day_used_percent: "88", seven_day_reset_at: "2026-09-08T00:00:00.000Z" }] };
       if (text.startsWith("INSERT")) return { rowCount: 1, rows: [] };
       return { rows: [] };
     },
