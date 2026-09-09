@@ -910,6 +910,7 @@
   @apply flex items-center justify-end gap-3;
 }
 
+.section-caption,
 .selection-status {
   @apply text-xs text-[color:var(--muted)];
 }

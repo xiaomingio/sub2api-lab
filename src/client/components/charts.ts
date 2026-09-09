@@ -3,10 +3,10 @@
  */
 
 import * as echarts from "echarts/core";
-import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
+import { DataZoomComponent, MarkLineComponent, GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import { LineChart, PieChart } from "echarts/charts";
 import { CanvasRenderer } from "echarts/renderers";
 
-echarts.use([GridComponent, LegendComponent, TooltipComponent, LineChart, PieChart, CanvasRenderer]);
+echarts.use([DataZoomComponent, MarkLineComponent, GridComponent, LegendComponent, TooltipComponent, LineChart, PieChart, CanvasRenderer]);
 
 export default echarts;

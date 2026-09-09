@@ -14,13 +14,7 @@ import { resolveDateRange } from "../../shared/ranges.js";
 import type { DashboardData, QuotaSnapshot, UsageAnalysisData, UsageQuery } from "../types.js";
 import { fetchUsageAnalysis } from "../api.js";
 import { defaultPresetForTab } from "./shared.js";
-
-type TrendTooltipParam = {
-  axisValueLabel?: string;
-  marker?: string;
-  seriesName?: string;
-  value?: number | string | null;
-};
+import { buildQuotaTrend, type QuotaTrendAccount } from "./quota-trend.js";
 
 export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; onQueryChange: (query: UsageQuery) => void }) {
   const query = props.query;
@@ -61,63 +55,55 @@ export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; o
     {error ? <div className="status-message is-error">{error}</div> : null}
     {accountAnalysisError ? <div className="status-message is-error">{accountAnalysisError}</div> : null}
     <section className="card quota-section account-list-section"><div className="card-header quota-section-heading"><h2>当前账号额度</h2><span className="section-caption">读取 Sub2API 当前账号快照</span></div><div className="card-body account-list-body">{accountAnalysis ? <AccountWindowCardList accounts={accountAnalysis.quota.accounts} /> : accountAnalysisLoading ? <LoadingSection /> : <div className="empty-state">当前没有可用的账号额度</div>}</div></section>
-    {loading && snapshots.length === 0 ? <LoadingSection /> : <section className="card quota-section"><div className="card-header quota-section-heading"><h2>{range.label}使用率趋势</h2><span className="section-caption">每个配置时区的整点快照；竖线表示检测到使用率下降</span></div><div className="card-body"><QuotaTrendChart snapshots={snapshots} timezone={props.data.timezone} /></div></section>}
+    {loading && snapshots.length === 0 ? <LoadingSection /> : <section className="card quota-section"><div className="card-header quota-section-heading"><h2>{range.label}使用率趋势</h2><span className="section-caption">实线：实际用量 · 虚线：按本轮平均速度预测至 100% · 同色竖线：下次重置</span></div><div className="card-body"><QuotaTrendChart snapshots={snapshots} accounts={accountAnalysis?.quota.accounts || []} timezone={props.data.timezone} /></div></section>}
   </>;
 }
 
-function QuotaTrendChart(props: { snapshots: QuotaSnapshot[]; timezone: string }) {
+function QuotaTrendChart(props: { snapshots: QuotaSnapshot[]; accounts: QuotaTrendAccount[]; timezone: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const rows = useMemo(() => [...props.snapshots].sort((left, right) => left.sampledAt.localeCompare(right.sampledAt)), [props.snapshots]);
+  const trends = useMemo(() => buildQuotaTrend(props.snapshots, props.accounts), [props.snapshots, props.accounts]);
+  const hasPoints = trends.some((account) => account.points.length > 0);
   useEffect(() => {
-    if (!ref.current || rows.length === 0) return;
+    if (!ref.current || !hasPoints) return;
     const chart = echarts.init(ref.current);
-    const labels = [...new Set(rows.map((row) => formatDateTime(row.sampledAt, props.timezone)))];
-    const rowsByAccount = new Map<number, QuotaSnapshot[]>();
-    rows.forEach((row) => rowsByAccount.set(row.accountId, [...(rowsByAccount.get(row.accountId) || []), row]));
+    const date = (value: number) => formatDateTime(new Date(value), props.timezone);
+    const escape = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
     const colors = ["#2563eb", "#059669", "#d97706", "#e11d48", "#7c3aed", "#64748b"];
+    const timestamps = trends.flatMap((account) => [...account.points.map(([at]) => at), ...(account.resetAt === null ? [] : [account.resetAt]), ...(account.exhaustedAt === null ? [] : [account.exhaustedAt])]);
     chart.setOption({
-      tooltip: {
-        trigger: "axis",
-        formatter: (params: TrendTooltipParam | TrendTooltipParam[]) => {
-          const items = Array.isArray(params) ? params : [params];
-          const title = items[0]?.axisValueLabel || "";
-          const values = items
-            .filter((item) => item.value !== null && item.value !== undefined)
-            .map((item) => `${item.marker || ""}${item.seriesName || "账号"}: ${Number(item.value).toFixed(2)}%`);
-          return [title, ...values].filter(Boolean).join("<br/>");
-        }
-      },
-      legend: { type: "scroll", top: 4, left: 4, right: 4, textStyle: { color: "#60716f", fontSize: 10 } },
-      grid: { top: 42, right: 24, bottom: 54, left: 52 },
-      xAxis: { type: "category", data: labels, axisLabel: { hideOverlap: true } },
+      tooltip: { trigger: "item" },
+      legend: { data: trends.map((account) => account.name), type: "scroll", top: 4, left: 4, right: 4, textStyle: { color: "#60716f", fontSize: 10 } },
+      grid: { top: 42, right: 32, bottom: 80, left: 52 },
+      dataZoom: [{ type: "slider", bottom: 8, height: 22 }, { type: "inside" }],
+      xAxis: { type: "time", min: Math.min(...timestamps), max: Math.max(...timestamps), axisLabel: { hideOverlap: true, formatter: (value: number) => date(value) } },
       yAxis: { type: "value", min: 0, max: 100, axisLabel: { formatter: (value: number) => `${value}%` } },
-      series: [...rowsByAccount.entries()].map(([accountId, accountRows], index) => {
-        const color = colors[index % colors.length];
-        const resetLines = accountRows.filter((row) => row.isReset).map((row) => ({
-          xAxis: formatDateTime(row.sampledAt, props.timezone),
-          name: "重置",
-          label: { formatter: `重置 ${row.sevenDayUsedPercent === null ? "" : `${row.sevenDayUsedPercent.toFixed(1)}%`}`, color, position: "insideEndTop" }
-        }));
-        return {
-          name: accountRows[0]?.accountName || `账号 #${accountId}`,
-          type: "line",
-          smooth: 0.15,
-          connectNulls: false,
-          symbol: "circle",
-          symbolSize: 5,
-          itemStyle: { color },
-          lineStyle: { color },
-          data: labels.map((label) => {
-            const row = accountRows.find((item) => formatDateTime(item.sampledAt, props.timezone) === label);
-            return row?.sevenDayUsedPercent ?? null;
-          }),
-          markLine: resetLines.length ? { silent: true, symbol: ["none", "none"], lineStyle: { color, type: "dashed", width: 1.5 }, data: resetLines } : undefined
-        };
+      series: trends.flatMap((account, index) => {
+        const color = colors[index] || `hsl(${(index * 137.508) % 360}, 65%, 45%)`;
+        const summary = [escape(account.name), account.resetAt === null ? "下次重置：暂无有效时间" : `下次重置：${date(account.resetAt)}`,
+          account.baseline ? `预测基点：${date(account.baseline[0])}，${account.baseline[1]!.toFixed(2)}%${account.estimatedBaseline ? "（未采到重置，使用本轮最早采样）" : "（使用率下降后的实际采样）"}` : "",
+          account.exhaustedAt === null ? `预测：${account.predictionUnavailableReason}` : `预计达到 100%：${date(account.exhaustedAt)}`,
+          account.exhaustedAt !== null && account.resetAt !== null ? (account.exhaustedAt >= account.resetAt ? "按当前速度可坚持到重置" : "按当前速度将在重置前耗尽") : ""].filter(Boolean).join("<br/>");
+        return [{
+          name: account.name, type: "line", smooth: false, connectNulls: false,
+          symbol: "circle", symbolSize: 5, itemStyle: { color }, lineStyle: { color }, data: account.points,
+          tooltip: { formatter: (param: { value: [number, number] }) => `${summary}<br/>${date(param.value[0])}：${param.value[1].toFixed(2)}%` },
+          markLine: {
+            symbol: ["none", "none"],
+            data: [
+              ...account.resets.map((at) => ({ xAxis: at, lineStyle: { color, type: "dotted", opacity: 0.45 }, label: { show: false }, tooltip: { formatter: `${escape(account.name)}<br/>检测到重置：${date(at)}` } })),
+              ...(account.resetAt === null ? [] : [{ xAxis: account.resetAt, lineStyle: { color, type: "solid", width: 2 }, label: { formatter: `${account.name} 下次重置`, color, position: "insideEndTop" }, tooltip: { formatter: summary } }])
+            ]
+          }
+        }, {
+          name: account.name, type: "line", data: account.prediction, smooth: false,
+          symbol: "emptyCircle", symbolSize: 7, itemStyle: { color }, lineStyle: { color, type: "dashed", width: 2 },
+          tooltip: { formatter: summary }, z: 3
+        }];
       })
     });
     const resize = () => chart.resize();
     window.addEventListener("resize", resize);
     return () => { window.removeEventListener("resize", resize); chart.dispose(); };
-  }, [props.timezone, rows]);
-  return rows.length ? <div ref={ref} className="quota-chart" aria-label="7 天账号使用率趋势图" /> : <div className="empty-state">当前范围暂无整点快照</div>;
+  }, [props.timezone, trends, hasPoints]);
+  return hasPoints ? <div ref={ref} className="quota-chart" aria-label="7 天账号使用率、下次重置与预测趋势图" /> : <div className="empty-state">当前范围暂无整点快照</div>;
 }

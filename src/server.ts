@@ -34,7 +34,14 @@ process.on("SIGTERM", () => {
   close().finally(() => process.exit(0));
 });
 
-await app.listen({ host: config.host, port: config.port }).catch((error: unknown) => {
-  app.log.error(error, "Failed to start HTTP server");
+const address = await app.listen({ host: config.host, port: config.port }).catch((error: unknown) => {
+  console.error("Failed to start HTTP server", error);
   process.exit(1);
 });
+
+const accessUrl = new URL(address);
+if (accessUrl.hostname === "0.0.0.0" || accessUrl.hostname === "[::]") {
+  accessUrl.hostname = "localhost";
+}
+accessUrl.pathname = `${config.basePath}/`;
+console.log(`\n  Sub2API Lab: ${accessUrl.href}\n`);
