@@ -18,6 +18,7 @@ import { getUserUsageSummary } from "../shared/usage.js";
 import { getUsageCostBasisReport, listUpstreamAccounts, normalizeAllocationBasis, parseAccountIds } from "../shared/usage-costs.js";
 import { getUsageRecordFilterOptions, getUsageRecords } from "./usage-records.js";
 import { getUsageAnalysis } from "./usage-analysis.js";
+import { getQuotaEstimation } from "./quota-estimation.js";
 import { listQuotaSnapshots } from "./quota-snapshots.js";
 import { registerRoutes } from "./routes.js";
 import { getCurrentTime } from "./clock.js";
@@ -202,6 +203,13 @@ export function createHandlers({ config, db, labDb, clientDir }: AppOptions) {
     return getUsageAnalysis({ db, range, timezone: config.timezone, now, granularity, filters: { userIds: parseQueryList(query.user_ids), accountIds: parseQueryList(query.account_ids), models: parseQueryList(query.models), upstreamEndpoints: parseQueryList(query.upstream_endpoints), billingModes: parseQueryList(query.billing_modes), requestTypes: parseQueryList(query.request_types), apiKeyIds: parseQueryList(query.api_key_ids), upstreamModelMismatch: parseQueryList(query.upstream_model_mismatch), inboundEndpoints: parseQueryList(query.inbound_endpoints), groupIds: parseQueryList(query.group_ids), billingTypes: parseQueryList(query.billing_types) } });
   }
 
+  async function quotaEstimationApi(request: FastifyRequest, reply: FastifyReply) {
+    const hours = Number((request.query as { hours?: string }).hours ?? 168);
+    if (hours !== 24 && hours !== 72 && hours !== 168) return reply.code(400).send({ message: "分析范围仅支持 24、72 或 168 小时" });
+    reply.header("Cache-Control", "no-store");
+    return getQuotaEstimation({ db, labDb, hours, now: getCurrentTime(config.fakeNow), timezone: config.timezone });
+  }
+
   async function quotaSnapshotsApi(request: FastifyRequest) {
     const query = request.query as UsageQuery;
     const now = getCurrentTime(config.fakeNow);
@@ -238,7 +246,7 @@ export function createHandlers({ config, db, labDb, clientDir }: AppOptions) {
     return { targetBalance, selectedUserIds: userIds, ...result };
   }
 
-  return { dashboardApi, usageApi, usageRecordsApi, usageRecordFilterOptionsApi, usageAnalysisApi, quotaSnapshotsApi, sendHtml, restoreBalanceApi };
+  return { dashboardApi, usageApi, usageRecordsApi, usageRecordFilterOptionsApi, usageAnalysisApi, quotaSnapshotsApi, quotaEstimationApi, sendHtml, restoreBalanceApi };
 }
 
 function parseQueryList(value: string | string[] | undefined): string[] {

@@ -150,3 +150,8 @@ export async function restoreBalances(params: {
   });
   return parseJsonResponse<RestoreResult>(response);
 }
+
+export async function fetchQuotaEstimation(hours: import("../shared/quota-estimation.js").EstimationHours, signal?: AbortSignal): Promise<import("../shared/quota-estimation.js").QuotaEstimation> {
+  const response = await fetch(`${apiPath("api/quota-estimation")}?hours=${hours}`, { credentials: "same-origin", signal });
+  return parseJsonResponse(response);
+}

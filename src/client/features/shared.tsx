@@ -20,6 +20,7 @@ import type { DashboardData, DashboardTab, RestoreResult, UsageQuery, UsageRecor
 const tabLabels: Record<DashboardTab, string> = {
   quotaTrend: "额度趋势",
   quota: "额度分析",
+  estimation: "额度估算",
   records: "使用记录",
   usage: "用量统计",
   allocation: "成本分摊",
@@ -95,7 +96,7 @@ type AllocationColumn = {
 
 function initialTab(): DashboardTab {
   const tab = new URLSearchParams(window.location.search).get("tab");
-  return tab === "quotaTrend" || tab === "allocation" || tab === "balance" || tab === "records" || tab === "quota" ? tab : "quotaTrend";
+  return tab === "estimation" || tab === "quotaTrend" || tab === "allocation" || tab === "balance" || tab === "records" || tab === "quota" ? tab : "quotaTrend";
 }
 
 function initialUsageQuery(defaultPreset: string, useUrlPreset = true): UsageQuery {
@@ -169,8 +170,10 @@ function compareAccountsByName(left: BalanceAccount, right: BalanceAccount): num
 }
 
 function updateUrl(tab: DashboardTab, usageQuery: UsageQuery) {
+  const previous = new URLSearchParams(window.location.search);
   const params = new URLSearchParams();
   params.set("tab", tab);
+  if (tab === "estimation" && previous.get("tab") === "estimation" && previous.has("hours")) params.set("hours", previous.get("hours")!);
   if (tab === "usage" || tab === "allocation" || tab === "quota" || tab === "quotaTrend") {
     if (usageQuery.preset) params.set("preset", usageQuery.preset);
     if (usageQuery.startDate) params.set("start_date", usageQuery.startDate);

@@ -9,6 +9,7 @@ import { BalanceSettingsTab } from "./features/BalanceSettingsTab.js";
 import { RecordsTab } from "./features/RecordsTab.js";
 import { UsageTab } from "./features/UsageTab.js";
 import { QuotaAnalysisTab } from "./features/QuotaAnalysisTab.js";
+import { QuotaEstimationTab } from "./features/QuotaEstimationTab.js";
 import { QuotaTrendTab } from "./features/QuotaTrendTab.js";
 import { LoadingSection } from "./components/LoadingSection.js";
 import type { UsageAnalysisData } from "./types.js";
@@ -70,7 +71,7 @@ export function App() {
   }, [activeQuery, tab]);
 
   useEffect(() => {
-    void loadDashboard();
+    if (tab !== "estimation") void loadDashboard();
   }, [activeQuery, tab]);
 
   useEffect(() => {
@@ -127,8 +128,9 @@ export function App() {
       </header>
 
       <main className="page-content">
-        {loading && !data ? <LoadingSection /> : null}
-        {error ? <div className="status-message is-error">{error}</div> : null}
+        {tab === "estimation" ? <QuotaEstimationTab /> : null}
+        {tab !== "estimation" && loading && !data ? <LoadingSection /> : null}
+        {tab !== "estimation" && error ? <div className="status-message is-error">{error}</div> : null}
         {data ? (
           <>
           {tab === "usage" ? (
