@@ -152,7 +152,7 @@ export function App() {
             />
           ) : null}
           {tab === "quota" ? <QuotaAnalysisTab data={data} query={quotaQuery} onQueryChange={setQuotaQuery} analysisCache={quotaAnalysisCache} /> : null}
-          {tab === "quotaTrend" ? <QuotaTrendTab data={data} query={quotaTrendQuery} onQueryChange={setQuotaTrendQuery} /> : null}
+          {tab === "quotaTrend" ? <QuotaTrendTab data={data} query={quotaTrendQuery} onQueryChange={setQuotaTrendQuery} analysisCache={quotaAnalysisCache} /> : null}
           {tab === "allocation" ? (
             <AllocationTab
               data={data}

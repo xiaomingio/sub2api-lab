@@ -16,10 +16,10 @@ import { fetchUsageAnalysis } from "../api.js";
 import { defaultPresetForTab } from "./shared.js";
 import { buildQuotaTrend } from "./quota-trend.js";
 
-export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; onQueryChange: (query: UsageQuery) => void }) {
+export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; onQueryChange: (query: UsageQuery) => void; analysisCache: Map<string, UsageAnalysisData> }) {
   const query = props.query;
   const [snapshots, setSnapshots] = useState<QuotaSnapshot[]>([]);
-  const [accountAnalysis, setAccountAnalysis] = useState<UsageAnalysisData | null>(null);
+  const [accountAnalysis, setAccountAnalysis] = useState<UsageAnalysisData | null>(() => props.analysisCache.get(JSON.stringify([query, "hour"])) || null);
   const [accountAnalysisLoading, setAccountAnalysisLoading] = useState(true);
   const [accountAnalysisError, setAccountAnalysisError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -35,13 +35,27 @@ export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; o
   }, [query]);
 
   useEffect(() => {
-    setAccountAnalysisLoading(true);
+    const requestKey = JSON.stringify([query, "hour"]);
+    const cachedAnalysis = props.analysisCache.get(requestKey);
     setAccountAnalysisError("");
+    if (cachedAnalysis) {
+      setAccountAnalysis(cachedAnalysis);
+      setAccountAnalysisLoading(false);
+      return;
+    }
+    let active = true;
+    setAccountAnalysisLoading(true);
     void fetchUsageAnalysis({ ...query, recordUserIds: [], recordAccountIds: [], recordInboundEndpoints: [], recordGroupIds: [], recordBillingTypes: [] }, "hour", false)
-      .then(setAccountAnalysis)
-      .catch((reason: unknown) => setAccountAnalysisError(reason instanceof Error ? reason.message : "加载当前账号额度失败。"))
-      .finally(() => setAccountAnalysisLoading(false));
-  }, [query]);
+      .then((result) => {
+        props.analysisCache.set(requestKey, result);
+        if (active) setAccountAnalysis(result);
+      })
+      .catch((reason: unknown) => {
+        if (active) setAccountAnalysisError(reason instanceof Error ? reason.message : "加载当前账号额度失败。");
+      })
+      .finally(() => { if (active) setAccountAnalysisLoading(false); });
+    return () => { active = false; };
+  }, [props.analysisCache, query]);
 
   const range = useMemo(() => {
     if (query.startDate && query.endDate) {
