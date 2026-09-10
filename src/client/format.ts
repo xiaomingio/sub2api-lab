@@ -46,6 +46,18 @@ function formatDateTime(value: string | Date, timezone: string): string {
   }).format(new Date(value));
 }
 
+function formatDateTimeWithSeconds(value: string | Date, timezone: string): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(new Date(value));
+}
+
 function formatDateTimeWithoutYear(value: string | Date, timezone: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
     timeZone: timezone,
@@ -56,5 +68,5 @@ function formatDateTimeWithoutYear(value: string | Date, timezone: string): stri
   }).format(new Date(value));
 }
 
-export { formatActualCost, formatAnalysisCost, formatDateTime, formatDateTimeWithoutYear, formatInteger, formatSystemBalance, formatTokenAmount, formatUsageCost };
+export { formatActualCost, formatAnalysisCost, formatDateTime, formatDateTimeWithSeconds, formatDateTimeWithoutYear, formatInteger, formatSystemBalance, formatTokenAmount, formatUsageCost };
 export type { ActualCostCurrency };

@@ -8,7 +8,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { DataTable } from "../components/DataTable.js";
 import { DateRangePicker } from "../components/DateRangePicker.js";
 import { FilterSummary } from "../components/FilterSummary.js";
-import { formatDateTime, formatInteger } from "../format.js";
+import { formatDateTimeWithSeconds, formatInteger } from "../format.js";
 import { requestTypeLabel } from "../../shared/request-type.js";
 import { billingTypeLabel } from "../../shared/billing-type.js";
 import { billingModeLabel } from "../../shared/billing-mode.js";
@@ -167,7 +167,7 @@ function formatRecordValue(value: unknown, key: string, timezone: string): strin
   if (key === "upstream_model_mismatch" && typeof value === "boolean") return value ? "不匹配" : "匹配";
   if (isRecordDateKey(key)) {
     const parsed = new Date(String(value));
-    if (!Number.isNaN(parsed.getTime())) return formatDateTime(parsed, timezone);
+    if (!Number.isNaN(parsed.getTime())) return formatDateTimeWithSeconds(parsed, timezone);
   }
   return displayRecordValue(value);
 }
