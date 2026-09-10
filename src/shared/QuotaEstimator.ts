@@ -83,10 +83,11 @@ export class QuotaEstimator {
     const names = [...new Set(rows.flatMap((r) => r.models.map((m) => m.model)))].sort();
     const totals = names.map((model) => rows.reduce<ModelTokens>((acc, r) => {
       const m = r.models.find((x) => x.model === model);
-      if (m) { acc.input += m.input; acc.output += m.output; acc.cacheRead += m.cacheRead; acc.cacheCreation += m.cacheCreation; }
+      if (m) { acc.input += m.input; acc.output += m.output; acc.cacheRead += m.cacheRead; acc.cacheCreation += m.cacheCreation; acc.billingGroups = [...(acc.billingGroups || []), ...(m.billingGroups || [])]; }
       return acc;
     }, { model, input: 0, output: 0, cacheRead: 0, cacheCreation: 0 }));
     const allTokens = sum(totals.map(total));
+    const tokenTypes = ["input", "output", "cacheRead", "cacheCreation"] as const;
     const x = rows.map((r) => names.map((name) => sum(r.models.filter((m) => m.model === name).map(total)) / 1e6));
     const y = rows.map((r) => r.percent);
     const percent = sum(y);
@@ -99,6 +100,9 @@ export class QuotaEstimator {
     if (percent > 0 && sum(rows.filter((r) => !r.models.some((m) => total(m) > 0)).map((r) => r.percent)) / percent > 0.1) reasons.push("超过 10% 的额度增量没有对应的本地 Token，无法可靠归因");
     const canFit = reasons.length === 0;
     const beta = canFit ? this.solve(x, y) : [];
+    const tokenX = rows.map((r) => names.flatMap((name) => tokenTypes.map((type) => r.models.filter((m) => m.model === name).reduce((value, m) => value + m[type], 0) / 1e6)));
+    // Token 类型模式独立判断可识别性，不受模型级拟合结果影响。
+    const tokenBeta = this.canSolve(tokenX, y) ? this.solve(tokenX, y) : [];
     const split = Math.floor(rows.length * 0.75);
     let validationError: number | null = null;
     if (canFit && split >= Math.max(6, names.length * 2) && this.identifiable(x.slice(0, split))) {
@@ -144,12 +148,15 @@ export class QuotaEstimator {
       const outputRate = m.output / Math.max(1, tokens);
       if (structure.length && (Math.sqrt(sum(structure.map((r) => r.weight * (r.cache - cacheRate) ** 2)) / tokens) > 0.15
         || Math.sqrt(sum(structure.map((r) => r.weight * (r.output - outputRate) ** 2)) / tokens) > 0.1)) modelReasons.push("缓存率或输出比例随时段变化较大");
-      return { ...m, totalTokens: tokens, share: tokens / Math.max(1, allTokens), cacheRate, outputRate, samples,
+      const tokenEstimates = tokenTypes.map((type, typeIndex) => { const coefficient = tokenBeta[j * tokenTypes.length + typeIndex]; return { tokenType: type, tokens: m[type], coefficient: coefficient > 1e-8 ? coefficient : null, capacity: coefficient > 1e-8 ? 100e6 / coefficient : null }; });
+      return { ...m, totalTokens: tokens, share: tokens / Math.max(1, allTokens), cacheRate, outputRate, samples, tokenEstimates,
         capacity, interval, comparisonCapacity: null, comparisonReason: null, status: !capacity ? "无法可靠估算" : modelReasons.length ? "估算不稳定" : "参考估算", reasons: modelReasons };
     }).sort((a, b) => b.totalTokens - a.totalTokens);
     return { samples: rows.length, effectiveHours: sum(rows.map((r) => (Date.parse(r.end) - Date.parse(r.start)) / HOUR)),
       start: rows[0]?.start ?? null, end: rows.at(-1)?.end ?? null, percent, validationError, reasons, models };
   }
+
+  private canSolve(x: number[][], y: number[]): boolean { return x.length > 0 && x[0]!.length > 0 && x.length >= x[0]!.length && this.identifiable(x); }
 
   private identifiable(x: number[][]): boolean {
     if (!x.length || !x[0]!.length || x.length < x[0]!.length) return false;

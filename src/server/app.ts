@@ -204,8 +204,8 @@ export function createHandlers({ config, db, labDb, clientDir }: AppOptions) {
   }
 
   async function quotaEstimationApi(request: FastifyRequest, reply: FastifyReply) {
-    const hours = Number((request.query as { hours?: string }).hours ?? 168);
-    if (hours !== 24 && hours !== 72 && hours !== 168) return reply.code(400).send({ message: "分析范围仅支持 24、72 或 168 小时" });
+    const hours = Number((request.query as { hours?: string }).hours ?? 720);
+    if (hours !== 24 && hours !== 72 && hours !== 168 && hours !== 720) return reply.code(400).send({ message: "分析范围仅支持 24、72、168 或 720 小时" });
     reply.header("Cache-Control", "no-store");
     return getQuotaEstimation({ db, labDb, hours, now: getCurrentTime(config.fakeNow), timezone: config.timezone });
   }
