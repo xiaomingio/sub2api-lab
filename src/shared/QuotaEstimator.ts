@@ -83,7 +83,7 @@ export class QuotaEstimator {
     const names = [...new Set(rows.flatMap((r) => r.models.map((m) => m.model)))].sort();
     const totals = names.map((model) => rows.reduce<ModelTokens>((acc, r) => {
       const m = r.models.find((x) => x.model === model);
-      if (m) { acc.input += m.input; acc.output += m.output; acc.cacheRead += m.cacheRead; acc.cacheCreation += m.cacheCreation; acc.billingGroups = [...(acc.billingGroups || []), ...(m.billingGroups || [])]; }
+      if (m) { acc.input += m.input; acc.output += m.output; acc.cacheRead += m.cacheRead; acc.cacheCreation += m.cacheCreation; acc.officialPricing ??= m.officialPricing; }
       return acc;
     }, { model, input: 0, output: 0, cacheRead: 0, cacheCreation: 0 }));
     const allTokens = sum(totals.map(total));

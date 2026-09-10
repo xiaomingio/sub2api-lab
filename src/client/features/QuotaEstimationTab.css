@@ -15,6 +15,12 @@
 .estimation-stats span, .estimation-sub { color: var(--muted); font-size: 12px; }
 .estimation-stats strong { font-size: 16px; }
 .estimation-sub, .estimation-status { display: block; margin-top: 6px; }
+.estimation-token-share { display: block; margin-top: 4px; }
+.estimation-share-table { min-width: 0; }
+.estimation-share-list, .estimation-revenue { display: grid; gap: 4px; font-size: 12px; }
+.estimation-share-list > span { display: flex; justify-content: space-between; gap: 12px; min-width: 116px; }
+.estimation-share-list strong, .estimation-revenue strong { color: var(--ink); }
+.estimation-revenue > span { white-space: nowrap; }
 .estimation-status { color: var(--muted); font-size: 12px; }
 .estimation-status.is-stable { color: var(--accent); }
 .estimation-explanation { padding: 0 20px 16px; }

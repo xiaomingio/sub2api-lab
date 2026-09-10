@@ -13,9 +13,9 @@ export type QuotaObservation = {
   updatedAt: string | null; resetAt: string | null; percent: number | null;
 };
 export type QuotaInterval = { id: number; accountId: number; start: string; end: string; percent: number };
-export type BillingGroup = { groupId: number | null; groupName: string; channelName: string; input: number; output: number; cacheRead: number; cacheCreation: number; inputPrice: number | null; outputPrice: number | null; cacheReadPrice: number | null; cacheCreationPrice: number | null };
+export type OfficialPricing = { inputPrice: number | null; outputPrice: number | null; cacheWritePrice: number | null; cacheReadPrice: number | null };
 export type TokenEstimate = { tokenType: "input" | "output" | "cacheRead" | "cacheCreation"; tokens: number; capacity: number | null; coefficient: number | null };
-export type ModelTokens = { model: string; input: number; output: number; cacheRead: number; cacheCreation: number; billingGroups?: BillingGroup[] };
+export type ModelTokens = { model: string; input: number; output: number; cacheRead: number; cacheCreation: number; officialPricing?: OfficialPricing | null };
 export type QuotaSample = QuotaInterval & { models: ModelTokens[] };
 export type ModelEstimate = ModelTokens & {
   totalTokens: number; share: number; cacheRate: number; outputRate: number; samples: number;

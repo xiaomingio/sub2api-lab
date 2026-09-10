@@ -6,7 +6,7 @@ import { fetchQuotaEstimation } from "../api.js";
 import { LoadingSection } from "../components/LoadingSection.js";
 import { formatTokenAmount } from "../format.js";
 import { estimationRanges } from "../../shared/quota-estimation.js";
-import type { AccountEstimate, BillingGroup, EstimationHours, ModelEstimate, QuotaEstimation } from "../../shared/quota-estimation.js";
+import type { AccountEstimate, EstimationHours, ModelEstimate, QuotaEstimation } from "../../shared/quota-estimation.js";
 import "./QuotaEstimationTab.css";
 
 const percent = (n: number) => `${(n * 100).toFixed(1)}%`;
@@ -14,20 +14,20 @@ const amount = (n: number | null) => n === null ? "—" : formatTokenAmount(n);
 const date = (s: string | null, timezone: string) => s ? new Intl.DateTimeFormat("zh-CN", { timeZone: timezone, month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(s)) : "—";
 const tokenTypes = [{ key: "input", label: "输入" }, { key: "output", label: "输出" }, { key: "cacheRead", label: "缓存读取" }, { key: "cacheCreation", label: "缓存创建" }] as const;
 type TokenType = typeof tokenTypes[number]["key"];
-const groupKey = (g: BillingGroup) => `${g.channelName}\u0000${g.groupId ?? "none"}`;
-function billingGroups(model: ModelEstimate): BillingGroup[] {
-  const groups = new Map<string, BillingGroup>();
-  for (const item of model.billingGroups || []) {
-    const key = groupKey(item); const existing = groups.get(key);
-    if (existing) { existing.input += item.input; existing.output += item.output; existing.cacheRead += item.cacheRead; existing.cacheCreation += item.cacheCreation; }
-    else groups.set(key, { ...item });
-  }
-  return [...groups.values()];
-}
 function projectedTokens(model: ModelEstimate, type: TokenType): number | null {
   return model.tokenEstimates.find((item) => item.tokenType === type)?.capacity ?? null;
 }
-
+function officialPrice(model: ModelEstimate, type: TokenType): number | null {
+  const pricing = model.officialPricing;
+  if (!pricing) return null;
+  return type === "input" ? pricing.inputPrice : type === "output" ? pricing.outputPrice : type === "cacheRead" ? pricing.cacheReadPrice : pricing.cacheWritePrice;
+}
+function officialPriceDisplay(price: number): string {
+  return money(price * 1_000_000);
+}
+function money(value: number): string {
+  return value.toFixed(4).replace(/\.?(0+)$/, "");
+}
 export function QuotaEstimationTab() {
   const [hours, setHours] = useState<EstimationHours>(() => {
     const value = Number(new URLSearchParams(window.location.search).get("hours"));
@@ -57,14 +57,14 @@ export function QuotaEstimationTab() {
   return <div className="estimation-workspace">
     <section className="card" aria-labelledby="estimation-title">
       <div className="card-header estimation-heading">
-        <div><h2 id="estimation-title">单模型额度估算</h2><p className="estimation-note">保持当前输入、输出与缓存比例，估算只使用一个模型时，完整 7 天窗口可用的总 Token。</p></div>
+        <div><h2 id="estimation-title">单模型额度估算</h2></div>
         <button type="button" className="ghost-button" onClick={() => setRefresh((n) => n + 1)} disabled={loading}>刷新估算</button>
       </div>
       <div className="card-body estimation-controls">
         <div className="segmented-control" aria-label="分析时间范围">{estimationRanges.map((range) => <button type="button" key={range.hours} aria-pressed={hours === range.hours} className={hours === range.hours ? "is-active" : ""} onClick={() => setHours(range.hours)}>{range.label}</button>)}</div>
         <label className="estimation-account">上游账号<select value={accountId} onChange={(e) => setAccountId(e.target.value)}><option value="all">全部账号 · 分别计算</option>{data?.accounts.map((a) => <option key={a.accountId} value={a.accountId}>{a.accountName} #{a.accountId}</option>)}</select></label>
         <label className="estimation-toggle"><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />显示全部模型</label>
-        <label className="estimation-toggle"><input type="checkbox" checked={showBilling} onChange={(e) => setShowBilling(e.target.checked)} />按 Token 类型计算预估收入</label>
+        <label className="estimation-toggle"><input type="checkbox" checked={showBilling} onChange={(e) => setShowBilling(e.target.checked)} />按 Token 类型分别计算</label>
       </div>
     </section>
     {error ? <div className="status-message is-error" role="alert">{data ? "更新失败，当前保留上次结果。" : ""}{error}<button type="button" className="ghost-button" onClick={() => setRefresh((n) => n + 1)}>重试</button></div> : null}
@@ -76,8 +76,6 @@ export function QuotaEstimationTab() {
     <section className="card" aria-label="估算口径"><div className="card-body"><details className="estimation-method"><summary>计算方法与结果说明</summary>
       <p>每个账号独立计算。按上游用量更新时间匹配日志，相邻有效区间合并至约 3 小时；跨重置及重置所在整小时、缺失或异常快照、超过 6 小时的观测间隔均丢弃。时间范围外的区间不参与计算。</p>
       <p>所有模型的总 Token 参与稳健非负加权最小二乘：额度增量 ≈ 各模型百万 Token × 消耗系数。完整窗口容量 = 100 ÷ 消耗系数。小于等于 10% 的模型仅默认隐藏，不从拟合中删除。</p>
-      <p>总 Token = 普通输入 + 输出 + 缓存读取 + 缓存创建。缓存率 = 缓存读取 ÷ 全部输入，输出占比 = 输出 ÷ 总 Token。按上游模型名称归类；历史记录缺失时使用日志模型名称。</p>
-      <p>勾选“按 Token 类型计算预估收入”后，按模型广场渠道下的分组分别展示输入、输出、缓存读取和缓存创建 Token。渠道价格单位为 USD/token，预估收入 = Token 数量 × 对应单价；未配置价格显示为“—”，不会按 0 计入。</p>
       <p>区间为连续时段成块重采样 80 次得到的 5%～95% 容量范围，仅反映样本波动。预测误差为前 75% 时段拟合后，预测后 25% 时段的绝对误差总和 ÷ 实际额度增量。7 天结果附带最近 3 天对照。</p>
       <p>至少需要 8 个有效时段、每个模型平均 3 个时段及累计 5 个百分点消耗，并检查模型用量是否能区分。缺少可靠证据时不提供容量；误差、区间或用量结构波动较大时标记不稳定。未记入日志的账号用量、服务档位和平台规则变化可能造成额外偏差。结果不代表官方固定额度，也不保证可绕过 5 小时限额。</p>
     </details></div></section>
@@ -86,7 +84,6 @@ export function QuotaEstimationTab() {
 
 function AccountResult({ account, showAll, showBilling, data }: { account: AccountEstimate; showAll: boolean; showBilling: boolean; data: QuotaEstimation }) {
   const models = showAll ? account.models : account.models.slice(0, 5);
-  const channels = [...new Map(models.flatMap((m) => billingGroups(m)).map((g) => [groupKey(g), g])).values()];
   return <section className="card" aria-labelledby={`estimate-account-${account.accountId}`}>
     <div className="card-header estimation-heading"><h2 id={`estimate-account-${account.accountId}`}>{account.accountName} <span className="estimation-note">#{account.accountId}</span></h2><span className="estimation-note">有效记录 {date(account.start, data.timezone)} — {date(account.end, data.timezone)}</span></div>
     <div className="card-body estimation-stats">
@@ -98,8 +95,8 @@ function AccountResult({ account, showAll, showBilling, data }: { account: Accou
     </div>
     {account.reasons.length ? <p className="estimation-note estimation-explanation">{account.reasons.join("；")}。</p> : null}
     <div className="card-body card-body-flush table-body"><div className="table-wrap"><table className="estimation-table">
-      <thead><tr><th>模型</th><th>Token 类型</th><th className="num">样本 Token</th><th className="num">完整窗口 Token</th>{data.hours === 168 ? <th className="num">最近 3 天对照</th> : null}{showBilling ? channels.map((g) => <th className="num" key={groupKey(g)}>{g.channelName}<span className="estimation-sub">单价 / 收入</span></th>) : null}<th>判断依据</th></tr></thead>
-      <tbody>{models.length ? models.flatMap((m) => (showBilling ? tokenTypes : [null]).map((type, index) => { const groups = billingGroups(m); const tokenKey = type?.key; const sample = tokenKey ? m[tokenKey] : m.totalTokens; const projected = tokenKey ? projectedTokens(m, tokenKey) : (m.capacity ?? null); return <tr key={`${m.model}-${tokenKey || "total"}`}><td>{index === 0 ? <><strong>{m.model}</strong><span className={`estimation-status${m.status === "参考估算" ? " is-stable" : ""}`}>{m.status}</span></> : null}</td><td>{type?.label || "总 Token"}</td><td className="num">{amount(sample)}</td><td className="num strong">{amount(projected)}</td>{data.hours === 168 ? <td className="num">{m.comparisonCapacity ? amount(tokenKey ? m.comparisonCapacity * m[tokenKey] / Math.max(1, m.totalTokens) : m.comparisonCapacity) : "样本不足"}</td> : null}{showBilling ? channels.map((channel) => { const g = groups.find((item) => groupKey(item) === groupKey(channel)); if (!g || !tokenKey || projected === null) return <td className="num" key={groupKey(channel)}>—</td>; const groupTokens = g[tokenKey]; const price = g[`${tokenKey}Price` as keyof BillingGroup] as number | null; const quantity = projected * groupTokens / Math.max(1, m[tokenKey]); return <td className="num" key={groupKey(g)}>{price === null ? "—" : `$${price} / $${(quantity * price).toFixed(4)}`}<span className="estimation-sub">{g.groupName}</span></td>; }) : null}<td className="estimation-reasons">{index === 0 ? (m.reasons.length ? m.reasons.join("；") : "通过样本与预测检查，按当前用量结构参考") : null}</td></tr>; })) : <tr><td colSpan={(data.hours === 168 ? 6 : 5) + (showBilling ? channels.length : 0)} className="empty-cell">{account.models.length ? "暂无可显示模型。" : "暂无有效模型用量。可扩大时间范围，或等待额度快照与使用记录积累。"}</td></tr>}</tbody>
+      <thead><tr><th>模型</th><th>Token 类型</th><th className="num">样本 Token</th><th className="num">完整窗口 Token</th>{data.hours === 168 ? <th className="num">最近 3 天对照</th> : null}<th>Token 类型平均占比</th><th className="num">官方价格($/M) / 预估金额($)</th><th>判断依据</th></tr></thead>
+      <tbody>{models.length ? models.flatMap((m) => (showBilling ? tokenTypes : [null]).map((type, index) => { const tokenKey = type?.key; const sample = tokenKey ? m[tokenKey] : m.totalTokens; const projected = tokenKey ? projectedTokens(m, tokenKey) : (m.capacity ?? null); const details = tokenTypes.map((item) => { const price = officialPrice(m, item.key); const quantity = (m.capacity ?? 0) * m[item.key] / Math.max(1, m.totalTokens); return { label: item.label, price, revenue: price === null || m.capacity === null ? null : quantity * price }; }); const revenue = details.every((item) => item.revenue !== null) ? details.reduce((sum, item) => sum + item.revenue!, 0) : null; const price = tokenKey ? officialPrice(m, tokenKey) : null; const typeRevenue = tokenKey && projected !== null && price !== null ? projected * price : null; return <tr key={`${m.model}-${tokenKey || "total"}`}><td>{index === 0 ? <><strong>{m.model}</strong><span className={`estimation-status${m.status === "参考估算" ? " is-stable" : ""}`}>{m.status}</span></> : null}</td><td>{type?.label || "总 Token"}</td><td className="num">{amount(sample)}</td><td className="num strong">{amount(projected)}</td>{data.hours === 168 ? <td className="num">{m.comparisonCapacity ? amount(tokenKey ? m.comparisonCapacity * m[tokenKey] / Math.max(1, m.totalTokens) : m.comparisonCapacity) : "样本不足"}</td> : null}<td className="estimation-note">{!showBilling ? <span className="estimation-share-list">{tokenTypes.map((item) => <span key={item.key}><span>{item.label}</span><strong>{percent(m[item.key] / Math.max(1, m.totalTokens))}</strong></span>)}</span> : ""}</td><td className="num estimation-revenue">{showBilling ? (price === null ? "—" : `${officialPriceDisplay(price)} / ${typeRevenue === null ? "—" : money(typeRevenue)}`) : <>{details.map((item) => <span key={item.label}>{item.label} {item.price === null ? "—" : `${officialPriceDisplay(item.price)} / ${money(item.revenue!)}`}</span>)}<strong>{revenue === null ? "合计 —" : `合计 ${money(revenue)}`}</strong></>}</td><td className="estimation-reasons">{index === 0 ? (m.reasons.length ? m.reasons.join("；") : "通过样本与预测检查，按当前用量结构参考") : null}</td></tr>; })) : <tr><td colSpan={(data.hours === 168 ? 6 : 5) + 2} className="empty-cell">{account.models.length ? "暂无可显示模型。" : "暂无有效模型用量。可扩大时间范围，或等待额度快照与使用记录积累。"}</td></tr>}</tbody>
     </table></div></div>
   </section>;
 }
