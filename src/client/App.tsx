@@ -11,6 +11,7 @@ import { UsageTab } from "./features/UsageTab.js";
 import { QuotaAnalysisTab } from "./features/QuotaAnalysisTab.js";
 import { QuotaEstimationTab } from "./features/QuotaEstimationTab.js";
 import { QuotaTrendTab } from "./features/QuotaTrendTab.js";
+import { OverviewTab } from "./features/OverviewTab.js";
 import { LoadingSection } from "./components/LoadingSection.js";
 import type { UsageAnalysisData } from "./types.js";
 import {
@@ -19,7 +20,7 @@ import {
   defaultPresetForTab,
   initialTab,
   initialUsageQuery,
-  tabLabels,
+  tabDefinitions,
   updateUrl
 } from "./features/shared.js";
 import type { DashboardData, DashboardTab, UsageQuery, UsageRecordsData, UsageRecordFilterOptions } from "./types.js";
@@ -71,7 +72,7 @@ export function App() {
   }, [activeQuery, tab]);
 
   useEffect(() => {
-    if (tab !== "estimation") void loadDashboard();
+    if (tab !== "estimation" && tab !== "overview") void loadDashboard();
   }, [activeQuery, tab]);
 
   useEffect(() => {
@@ -108,7 +109,7 @@ export function App() {
           <span className="app-eyebrow">SUB2API LAB / ADMIN</span>
         </div>
         <nav className="tab-nav" aria-label="功能标签页">
-          {Object.entries(tabLabels).map(([key, label]) => (
+          {tabDefinitions.map(({ key, label }) => (
             <button
               className={`tab-link${tab === key ? " is-active" : ""}`}
               type="button"
@@ -128,10 +129,11 @@ export function App() {
       </header>
 
       <main className="page-content">
+        {tab === "overview" ? <OverviewTab onSelectTab={setTab} /> : null}
         {tab === "estimation" ? <QuotaEstimationTab /> : null}
-        {tab !== "estimation" && loading && !data ? <LoadingSection /> : null}
-        {tab !== "estimation" && error ? <div className="status-message is-error">{error}</div> : null}
-        {data ? (
+        {tab !== "overview" && tab !== "estimation" && loading && !data ? <LoadingSection /> : null}
+        {tab !== "overview" && tab !== "estimation" && error ? <div className="status-message is-error">{error}</div> : null}
+        {data && tab !== "overview" ? (
           <>
           {tab === "usage" ? (
             <UsageTab data={data} usageQuery={usageQuery} onUsageQueryChange={(query) => setUsageQuery(query)} />

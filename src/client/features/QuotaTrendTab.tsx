@@ -16,6 +16,12 @@ import { fetchUsageAnalysis } from "../api.js";
 import { defaultPresetForTab } from "./shared.js";
 import { buildQuotaTrend } from "./quota-trend.js";
 
+const accountColors = ["#2563eb", "#059669", "#d97706", "#e11d48", "#7c3aed", "#64748b"];
+
+function accountColor(index: number): string {
+  return accountColors[index] || `hsl(${(index * 137.508) % 360}, 65%, 45%)`;
+}
+
 export function QuotaTrendTab(props: { data: DashboardData; query: UsageQuery; onQueryChange: (query: UsageQuery) => void; analysisCache: Map<string, UsageAnalysisData> }) {
   const query = props.query;
   const [snapshots, setSnapshots] = useState<QuotaSnapshot[]>([]);
@@ -82,7 +88,6 @@ function QuotaTrendChart(props: { snapshots: QuotaSnapshot[]; timezone: string }
     const chart = echarts.init(ref.current);
     const date = (value: number) => formatDateTime(new Date(value), props.timezone);
     const escape = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
-    const colors = ["#2563eb", "#059669", "#d97706", "#e11d48", "#7c3aed", "#64748b"];
     const timestamps = trends.flatMap((account) => [...account.points.map(([at]) => at), ...account.resetPrediction.map(([at]) => at), ...(account.resetAt === null ? [] : [account.resetAt]), ...(account.exhaustedAt === null ? [] : [account.exhaustedAt])]);
     chart.setOption({
       tooltip: {
@@ -107,7 +112,8 @@ function QuotaTrendChart(props: { snapshots: QuotaSnapshot[]; timezone: string }
             return previousValue + (nextValue - previousValue) * ((hoverAt - previousAt) / (nextAt - previousAt));
           };
           const lines = [`<strong>${date(hoverAt)}</strong>`];
-          for (const account of trends) {
+          for (const [index, account] of trends.entries()) {
+            const color = accountColor(index);
             const valueFor = (seriesName: string, points: Array<[number, number | null]>): number | null => {
               const value = params.find((param) => param.seriesName === seriesName)?.value;
               const numericValue = Array.isArray(value) ? value[1] : value;
@@ -125,7 +131,10 @@ function QuotaTrendChart(props: { snapshots: QuotaSnapshot[]; timezone: string }
               detectedReset ? "检测到重置" : "",
               estimatedReset ? `下次重置：${date(account.resetAt!)}` : ""
             ].filter(Boolean);
-            if (details.length > 0) lines.push(`${escape(account.name)}：${details.join(" · ")}`);
+            if (details.length > 0) {
+              const swatch = `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${color};margin-right:6px;"></span>`;
+              lines.push(`${swatch}${escape(account.name)}：${details.join(" · ")}`);
+            }
           }
           return lines.length > 1 ? lines.join("<br/>") : "";
         }
@@ -136,7 +145,7 @@ function QuotaTrendChart(props: { snapshots: QuotaSnapshot[]; timezone: string }
       xAxis: { type: "time", min: Math.min(...timestamps), max: Math.max(...timestamps), axisLabel: { hideOverlap: true, formatter: (value: number) => date(value) } },
       yAxis: { type: "value", min: 0, max: 100, axisLabel: { formatter: (value: number) => `${value}%` } },
       series: trends.flatMap((account, index) => {
-        const color = colors[index] || `hsl(${(index * 137.508) % 360}, 65%, 45%)`;
+        const color = accountColor(index);
         return [{
           name: account.name, type: "line", smooth: false, connectNulls: false,
           symbol: "circle", symbolSize: 5, itemStyle: { color }, lineStyle: { color, type: "solid" }, data: account.points,

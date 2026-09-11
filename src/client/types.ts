@@ -75,7 +75,7 @@ type RestoreResult = {
   failures: RestoreFailure[];
 };
 
-type DashboardTab = "estimation" | "quotaTrend" | "allocation" | "balance" | "usage" | "records" | "quota";
+type DashboardTab = "overview" | "estimation" | "quotaTrend" | "allocation" | "balance" | "usage" | "records" | "quota";
 
 type UsageQuery = {
   preset?: string;

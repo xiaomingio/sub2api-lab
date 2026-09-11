@@ -892,6 +892,68 @@
   @apply gap-0 p-0;
 }
 
+.overview-workspace {
+  @apply grid gap-6;
+}
+
+.overview-hero {
+  @apply overflow-hidden;
+  background: linear-gradient(135deg, #ffffff 0%, #eef8f5 100%);
+}
+
+.overview-hero .card-body {
+  @apply gap-3 px-6 py-8;
+}
+
+.overview-hero h1 {
+  @apply text-[28px] font-extrabold;
+}
+
+.overview-hero p:last-child {
+  @apply max-w-[680px] text-sm leading-6 text-[color:var(--muted)];
+}
+
+.overview-section {
+  @apply grid gap-4;
+}
+
+.overview-section-heading {
+  @apply flex items-end justify-between gap-5;
+}
+
+.overview-section-heading h2 {
+  @apply text-lg font-extrabold;
+}
+
+.overview-tab-grid {
+  @apply grid grid-cols-4 gap-3;
+}
+
+.overview-tab-card {
+  @apply grid min-h-[166px] cursor-pointer content-start gap-3 rounded-[14px] border border-[color:var(--panel-border)] bg-white p-4 text-left transition-colors;
+  box-shadow: 0 6px 18px rgba(25, 54, 51, 0.04);
+}
+
+.overview-tab-card:hover {
+  @apply border-[#9acfc5] bg-[#f7fcfb];
+}
+
+.overview-tab-card:focus-visible {
+  @apply outline outline-2 outline-offset-2 outline-[color:var(--accent)];
+}
+
+.overview-tab-card-label {
+  @apply text-base font-extrabold;
+}
+
+.overview-tab-card-description {
+  @apply text-sm leading-6 text-[color:var(--muted)];
+}
+
+.overview-tab-card-action {
+  @apply mt-auto text-xs font-extrabold text-[color:var(--accent)];
+}
+
 .quota-section-actions {
   @apply flex items-center gap-2;
 }
@@ -1150,6 +1212,10 @@
   .records-distribution-grid {
     @apply grid-cols-2;
   }
+
+  .overview-tab-grid {
+    @apply grid-cols-2;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1175,6 +1241,14 @@
 
   .records-distribution-grid,
   .account-window-summary {
+    @apply grid-cols-1;
+  }
+
+  .overview-section-heading {
+    @apply items-start flex-col;
+  }
+
+  .overview-tab-grid {
     @apply grid-cols-1;
   }
 

@@ -17,15 +17,18 @@ import {
 import type { ActualCostCurrency } from "../format.js";
 import type { DashboardData, DashboardTab, RestoreResult, UsageQuery, UsageRecordsData } from "../types.js";
 
-const tabLabels: Record<DashboardTab, string> = {
-  quotaTrend: "额度趋势",
-  quota: "额度分析",
-  estimation: "额度估算",
-  records: "使用记录",
-  usage: "用量统计",
-  allocation: "成本分摊",
-  balance: "余额设置"
-};
+type TabDefinition = { key: DashboardTab; label: string; description: string };
+
+const tabDefinitions: TabDefinition[] = [
+  { key: "overview", label: "系统介绍", description: "了解 Sub2API Lab 的用途，以及各个分析工具适合查看什么。" },
+  { key: "quotaTrend", label: "额度趋势", description: "查看各上游账号的额度使用率、历史快照、重置时间和趋势预测。" },
+  { key: "quota", label: "额度分析", description: "按时间范围分析账号、用户和模型的 Token 消耗与费用变化。" },
+  { key: "estimation", label: "额度估算", description: "根据历史额度快照和用量记录，估算账号与模型的窗口容量。" },
+  { key: "records", label: "使用记录", description: "按用户、账号、模型等条件筛选原始调用记录，并查看明细分布。" },
+  { key: "usage", label: "用量统计", description: "汇总用户的请求数、Token 和费用，支持时间范围与排序。" },
+  { key: "allocation", label: "成本分摊", description: "按系统余额或费用口径，将成本分配给用户并比较分摊结果。" },
+  { key: "balance", label: "余额设置", description: "选择用户设置系统余额，查看并刷新当前余额。" }
+];
 
 const defaultRangePresets: { default: string } & Partial<Record<DashboardTab, string>> = {
   default: "last_7_days",
@@ -96,7 +99,7 @@ type AllocationColumn = {
 
 function initialTab(): DashboardTab {
   const tab = new URLSearchParams(window.location.search).get("tab");
-  return tab === "estimation" || tab === "quotaTrend" || tab === "allocation" || tab === "balance" || tab === "records" || tab === "quota" ? tab : "quotaTrend";
+  return tab === "overview" || tab === "estimation" || tab === "quotaTrend" || tab === "allocation" || tab === "balance" || tab === "records" || tab === "quota" ? tab : "overview";
 }
 
 function initialUsageQuery(defaultPreset: string, useUrlPreset = true): UsageQuery {
@@ -487,8 +490,8 @@ export {
   selectedAccounts,
   sortHeaders,
   sortAccountsByCurrentBalanceDesc,
+  tabDefinitions,
   sortAllocationRowsForDisplay,
-  tabLabels,
   toggleUserId,
   updateUrl,
   upstreamAccountName
