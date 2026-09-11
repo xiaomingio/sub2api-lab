@@ -312,6 +312,7 @@ export function createUsageCostAllocationReport(params: {
   actualCost?: unknown;
 }): UsageCostAllocationReport {
   const basisByUserId = new Map<number, bigint>();
+  const costsByUserId = new Map(params.costBasisRows.map((row) => [row.userId, row]));
   for (const row of params.costBasisRows) {
     const basisUnits = parseFixedDecimal(row.costBasis, usageCostBasisScale);
     if (basisUnits === null || basisUnits < 0n) {
@@ -338,8 +339,8 @@ export function createUsageCostAllocationReport(params: {
     .map<UsageCostAllocationRow>((row) => ({
       ...row.account,
       costBasis: formatFixedDecimal(row.basisUnits, usageCostBasisScale),
-      actualCost: params.costBasisRows.find((basisRow) => basisRow.userId === row.account.userId)?.actualCost || "0",
-      totalCost: params.costBasisRows.find((basisRow) => basisRow.userId === row.account.userId)?.totalCost || "0",
+      actualCost: costsByUserId.get(row.account.userId)?.actualCost || "0",
+      totalCost: costsByUserId.get(row.account.userId)?.totalCost || "0",
       sharePercent: formatPercent(row.basisUnits, allocation.totalBasisUnits),
       allocatedCost: formatFixedDecimal(row.allocatedCostUnits, actualCostScale, actualCostScale)
     }));

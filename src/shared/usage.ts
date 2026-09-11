@@ -93,6 +93,11 @@ export async function getUserUsageSummary(params: {
         COALESCE(u.username, '') AS username,
         LOWER(COALESCE(NULLIF(u.email, ''), NULLIF(u.username, ''), ul.user_id::text)) AS display_user,
         COUNT(*)::bigint AS requests,
+        SUM(COUNT(*)) OVER ()::text AS summary_requests,
+        COUNT(*) OVER ()::text AS summary_users,
+        COALESCE(SUM(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens + ${imageTokensExpr})) OVER (), 0)::text AS summary_tokens,
+        COALESCE(SUM(SUM(ul.actual_cost)) OVER (), 0)::text AS summary_actual_cost,
+        COALESCE(SUM(SUM(ul.total_cost)) OVER (), 0)::text AS summary_standard_cost,
         COALESCE(SUM(ul.input_tokens), 0)::bigint AS input_tokens,
         COALESCE(SUM(ul.output_tokens), 0)::bigint AS output_tokens,
         COALESCE(SUM(ul.cache_creation_tokens + ul.cache_read_tokens), 0)::bigint AS cache_tokens,
@@ -131,17 +136,15 @@ export async function getUserUsageSummary(params: {
     actualCost: toNumber(row.actual_cost)
   }));
 
-  const userIds = new Set(rows.map((row) => row.userId));
-  const summary = rows.reduce<UsageSummary>(
-    (acc, row) => ({
-      requests: acc.requests + row.requests,
-      users: userIds.size,
-      totalTokens: acc.totalTokens + row.totalTokens,
-      actualCost: acc.actualCost + row.actualCost,
-      standardCost: acc.standardCost + row.standardCost
-    }),
-    { requests: 0, users: 0, totalTokens: 0, actualCost: 0, standardCost: 0 }
-  );
+  // 窗口聚合发生在 LIMIT 之前，统计整个查询范围而非当前列表。
+  const totals = result.rows[0];
+  const summary: UsageSummary = {
+    requests: toNumber(totals?.summary_requests),
+    users: toNumber(totals?.summary_users),
+    totalTokens: toNumber(totals?.summary_tokens),
+    actualCost: toNumber(totals?.summary_actual_cost),
+    standardCost: toNumber(totals?.summary_standard_cost)
+  };
 
   return {
     rows,

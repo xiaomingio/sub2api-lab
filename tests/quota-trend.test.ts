@@ -1,3 +1,6 @@
+/*
+ * 文件说明: 验证额度趋势的重置基点、预测速率和逐小时预测边界。
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildQuotaTrend } from "../src/client/features/quota-trend.js";
@@ -71,4 +74,27 @@ test("a live decrease without a local sample does not become a reset", () => {
   assert.deepEqual(trend.points, [[Date.parse("2026-09-02T00:00:00Z"), 90]]);
   assert.deepEqual(trend.resets, []);
   assert.deepEqual(trend.prediction, []);
+});
+
+
+test("低消耗预测只生成到重置时刻的小时点，并保留真实预测使用率", () => {
+  const [trend] = buildQuotaTrend([
+    snapshot("2026-09-01T00:00:00Z", 1),
+    snapshot("2026-09-02T00:00:00Z", 1.001)
+  ]);
+  assert.equal(trend.prediction.length, 145);
+  assert.equal(trend.prediction.at(-1)![0], Date.parse(account.sevenDayResetAt));
+  assert.ok(Math.abs(trend.prediction.at(-1)![1]! - 1.007) < 1e-10);
+  assert.equal(trend.exhaustedAt, null);
+  for (let i = 1; i < trend.prediction.length; i++) {
+    assert.equal(trend.prediction[i]![0] - trend.prediction[i - 1]![0], 3_600_000);
+  }
+});
+
+test("重置时间已过时不外推下一轮用量", () => {
+  const [trend] = buildQuotaTrend([
+    snapshot("2026-09-09T00:00:00Z", 8), snapshot("2026-09-10T00:00:00Z", 9)
+  ]);
+  assert.deepEqual(trend.prediction, []);
+  assert.equal(trend.exhaustedAt, null);
 });

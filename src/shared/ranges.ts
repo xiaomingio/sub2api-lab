@@ -69,29 +69,26 @@ function utcFromZonedDate(year: number, month: number, day: number, timezone: st
 
 function utcFromZonedDateTime(year: number, month: number, day: number, hour: number, minute: number, timezone: string): Date {
   const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
-  const offsetParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    timeZoneName: "shortOffset",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(utcGuess);
-  const zoneName = offsetParts.find((part) => part.type === "timeZoneName")?.value || "GMT";
-  const match = zoneName.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/);
-  if (!match) {
-    return utcGuess;
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone, timeZoneName: "shortOffset", hour: "2-digit", minute: "2-digit", hour12: false
+  });
+  let candidate = utcGuess;
+  // 在目标时刻重新求偏移，避免用 UTC 猜测时刻的夏令时偏移转换本地时间。
+  for (let iteration = 0; iteration < 4; iteration++) {
+    const zoneName = formatter.formatToParts(candidate).find((part) => part.type === "timeZoneName")?.value || "GMT";
+    const match = zoneName.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/);
+    const offsetMinutes = match ? (match[1] === "+" ? 1 : -1) * (Number(match[2]) * 60 + Number(match[3] || "0")) : 0;
+    const next = new Date(utcGuess.getTime() - offsetMinutes * 60_000);
+    if (next.getTime() === candidate.getTime()) return next;
+    candidate = next;
   }
-  const sign = match[1] === "+" ? 1 : -1;
-  const hours = Number(match[2]);
-  const minutes = Number(match[3] || "0");
-  const offsetMinutes = sign * (hours * 60 + minutes);
-  return new Date(utcGuess.getTime() - offsetMinutes * 60_000);
+  return candidate;
 }
 
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
+function addDays(date: Date, days: number, timezone: string): Date {
+  const parts = zonedDateParts(date, timezone);
+  const next = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + days));
+  return utcFromZonedDate(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), timezone);
 }
 
 function addMonths(year: number, month: number, delta: number): { year: number; month: number } {
@@ -146,14 +143,14 @@ function fromDateKey(dateKey: string, timezone: string): Date {
 function defaultDateTimeRangeStart(timezone: string, now: Date): Date {
   const todayParts = zonedDateParts(now, timezone);
   const todayStart = utcFromZonedDate(todayParts.year, todayParts.month, todayParts.day, timezone);
-  return addDays(todayStart, -30);
+  return addDays(todayStart, -30, timezone);
 }
 
 function formatInclusiveEndDateKey(end: Date, timezone: string): string {
   const endDateKey = formatDateKey(end, timezone);
   const endDayStart = fromDateKey(endDateKey, timezone);
   if (endDayStart.getTime() === end.getTime()) {
-    return formatDateKey(addDays(end, -1), timezone);
+    return formatDateKey(addDays(end, -1, timezone), timezone);
   }
   return endDateKey;
 }
@@ -171,36 +168,36 @@ export function resolveDateRange(params: {
   const now = params.now ? new Date(params.now) : new Date();
   const todayParts = zonedDateParts(now, params.timezone);
   const todayStart = utcFromZonedDate(todayParts.year, todayParts.month, todayParts.day, params.timezone);
-  const tomorrowStart = addDays(todayStart, 1);
+  const tomorrowStart = addDays(todayStart, 1, params.timezone);
 
   if (preset === "custom") {
-    const fallbackStart = formatDateKey(addDays(todayStart, -6), params.timezone);
+    const fallbackStart = formatDateKey(addDays(todayStart, -6, params.timezone), params.timezone);
     const fallbackEnd = formatDateKey(todayStart, params.timezone);
     const startDate = parseDateInput(params.startDate, fallbackStart);
     const endDate = parseDateInput(params.endDate, fallbackEnd);
     const start = fromDateKey(startDate, params.timezone);
-    const end = addDays(fromDateKey(endDate, params.timezone), 1);
+    const end = addDays(fromDateKey(endDate, params.timezone), 1, params.timezone);
     return { preset, label: "自定义", start, end, startDate, endDate };
   }
 
-  let start = addDays(todayStart, -6);
+  let start = addDays(todayStart, -6, params.timezone);
   let end = tomorrowStart;
 
   if (preset === "today") {
     start = todayStart;
   } else if (preset === "yesterday") {
-    start = addDays(todayStart, -1);
+    start = addDays(todayStart, -1, params.timezone);
     end = todayStart;
   } else if (preset === "last_24_hours") {
     start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     end = now;
   } else if (preset === "sub2api_last_24_hours") {
-    start = addDays(todayStart, -1);
+    start = addDays(todayStart, -1, params.timezone);
     end = now;
   } else if (preset === "last_14_days") {
-    start = addDays(todayStart, -13);
+    start = addDays(todayStart, -13, params.timezone);
   } else if (preset === "last_30_days") {
-    start = addDays(todayStart, -29);
+    start = addDays(todayStart, -29, params.timezone);
   } else if (preset === "this_month") {
     start = utcFromZonedDate(todayParts.year, todayParts.month, 1, params.timezone);
   } else if (preset === "last_month") {

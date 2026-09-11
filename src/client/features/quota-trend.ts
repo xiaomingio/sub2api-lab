@@ -1,3 +1,6 @@
+/*
+ * 文件说明: 从小时快照计算额度趋势，并将逐小时预测限制在当前重置窗口内。
+ */
 import type { QuotaSnapshot } from "../types.js";
 
 export type TrendPoint = [number, number | null];
@@ -18,7 +21,9 @@ function hourlyLine(startAt: number, startUsage: number, endAt: number, endUsage
 export function buildQuotaTrend(rows: QuotaSnapshot[]) {
   const groups = new Map<number, QuotaSnapshot[]>();
   for (const row of [...rows].sort((a, b) => Date.parse(a.sampledAt) - Date.parse(b.sampledAt))) {
-    groups.set(row.accountId, [...(groups.get(row.accountId) || []), row]);
+    const group = groups.get(row.accountId) || [];
+    group.push(row);
+    groups.set(row.accountId, group);
   }
   return [...groups].sort(([a], [b]) => a - b).map(([id, history]) => {
     const latest = history.at(-1);
@@ -52,8 +57,10 @@ export function buildQuotaTrend(rows: QuotaSnapshot[]) {
       ? (used - baseline[1]!) / (currentAt - baseline[0]) : 0;
     const exhaustedAt = used != null && used >= 100 ? currentAt
       : rate > 0 && used != null ? currentAt + (100 - used) / rate : null;
-    const validEnd = exhaustedAt !== null && Number.isFinite(exhaustedAt) && exhaustedAt <= 8.64e15 ? exhaustedAt : null;
     const nextResetAt = Number.isFinite(resetAt) && resetAt > currentAt ? resetAt : null;
+    const validEnd = exhaustedAt !== null && Number.isFinite(exhaustedAt) && nextResetAt !== null && exhaustedAt <= nextResetAt ? exhaustedAt : null;
+    const predictionEnd = nextResetAt !== null && rate > 0 && used != null && used < 100
+      ? Math.min(exhaustedAt!, nextResetAt) : null;
     const resetPrediction = baseline !== null && nextResetAt !== null && baseline[0] < nextResetAt
       ? hourlyLine(baseline[0], baseline[1]!, nextResetAt, 100)
       : [];
@@ -67,9 +74,11 @@ export function buildQuotaTrend(rows: QuotaSnapshot[]) {
         : !Number.isFinite(currentAt) ? "暂无有效用量时间"
         : !baseline ? "缺少有效重置基点"
         : currentAt <= baseline[0] ? "重置后尚无可计算的时间跨度"
+        : nextResetAt === null ? "暂无有效的下次重置时间"
         : rate <= 0 ? "本轮尚无正向消耗，暂无预计耗尽时间"
-        : "预计耗尽时间超出可显示范围",
-      prediction: validEnd !== null && used != null ? hourlyLine(currentAt, used, validEnd, 100) : [],
+        : "本轮重置前预计不会耗尽",
+      prediction: predictionEnd !== null && used != null
+        ? hourlyLine(currentAt, used, predictionEnd, Math.min(100, used + rate * (predictionEnd - currentAt))) : [],
       resetPrediction
     };
   });

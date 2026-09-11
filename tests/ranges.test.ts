@@ -49,3 +49,24 @@ test("成本分摊开始时间默认是 30 天前的本地 0 点", () => {
     mock.timers.reset();
   }
 });
+
+
+test("夏令时切换日按本地自然日统计 23 或 25 小时", () => {
+  for (const [now, expectedStart, expectedEnd] of [
+    ["2026-03-08T12:00:00Z", "2026-03-08T05:00:00.000Z", "2026-03-09T04:00:00.000Z"],
+    ["2026-11-01T12:00:00Z", "2026-11-01T04:00:00.000Z", "2026-11-02T05:00:00.000Z"]
+  ]) {
+    const range = resolveDateRange({ preset: "today", timezone: "America/New_York", defaultPreset: "today", now: new Date(now!) });
+    assert.equal(range.start.toISOString(), expectedStart);
+    assert.equal(range.end.toISOString(), expectedEnd);
+    assert.equal(range.startDate, range.endDate);
+  }
+});
+
+test("自定义日期和跨夏令时的近七天均以本地零点为界", () => {
+  const base = { timezone: "America/New_York", defaultPreset: "today", now: new Date("2026-03-10T12:00:00Z") };
+  const custom = resolveDateRange({ ...base, preset: "custom", startDate: "2026-03-08", endDate: "2026-03-08" });
+  assert.equal(custom.end.toISOString(), "2026-03-09T04:00:00.000Z");
+  const week = resolveDateRange({ ...base, preset: "last_7_days" });
+  assert.equal(week.start.toISOString(), "2026-03-04T05:00:00.000Z");
+});

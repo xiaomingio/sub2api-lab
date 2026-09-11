@@ -1,9 +1,10 @@
 /*
  * 文件说明: 读取额度快照，以有效更新时间区间汇总各账号的上游模型 Token，返回窗口容量估算。
  */
+import { createHash } from "node:crypto";
 import type { Db, LabDb } from "./db.js";
 import { QuotaEstimator } from "../shared/QuotaEstimator.js";
-import type { EstimationHours, ModelTokens, OfficialPricing, QuotaEstimation, QuotaObservation, QuotaSample } from "../shared/quota-estimation.js";
+import type { AccountEstimate, EstimationHours, ModelTokens, OfficialPricing, QuotaEstimation, QuotaObservation, QuotaSample } from "../shared/quota-estimation.js";
 import { hourBucketStart } from "./quota-snapshot-scheduler.js";
 
 type ModelPlazaResponse = { data?: { groups?: Array<{ models?: Array<{ name?: string; official_pricing?: { input_price?: number | null; output_price?: number | null; cache_write_price?: number | null; cache_read_price?: number | null } | null }> }> }; groups?: Array<{ models?: Array<{ name?: string; official_pricing?: { input_price?: number | null; output_price?: number | null; cache_write_price?: number | null; cache_read_price?: number | null } | null }> }> };
@@ -44,7 +45,50 @@ function findOfficialPricing(pricing: Map<string, OfficialPricing>, model: strin
   return modelAliases(model).map((alias) => pricing.get(alias)).find(Boolean) || null;
 }
 
-export async function getQuotaEstimation(params: { db: Db; labDb: LabDb; hours: EstimationHours; now: Date; timezone: string; sub2apiBaseUrl: string }): Promise<QuotaEstimation> {
+type EstimationParams = { db: Db; labDb: LabDb; hours: EstimationHours; now: Date; timezone: string; sub2apiBaseUrl: string };
+
+class QuotaEstimationCache {
+  private readonly pending = new Map<string, Promise<QuotaEstimation>>();
+  private readonly fits = new Map<string, { signature: string; accounts: AccountEstimate[] }>();
+
+  private key(params: EstimationParams): string {
+    return JSON.stringify([params.hours, params.timezone, params.sub2apiBaseUrl]);
+  }
+
+  get(params: EstimationParams): Promise<QuotaEstimation> {
+    const key = JSON.stringify([this.key(params), params.now.toISOString()]);
+    const running = this.pending.get(key);
+    if (running) return running;
+    const result = loadQuotaEstimation(params, this).finally(() => { this.pending.delete(key); });
+    this.pending.set(key, result);
+    return result;
+  }
+
+  fit(params: EstimationParams, estimator: QuotaEstimator, samples: QuotaSample[], observations: QuotaObservation[], accounts: Array<{ id: number; name: string }>): AccountEstimate[] {
+    const key = this.key(params);
+    // 使用实际输入而非仅快照时间作为版本，日志补写、修正和价格变化都会使缓存失效。
+    const signature = createHash("sha256").update(JSON.stringify([observations, samples, accounts])).digest("hex");
+    const cached = this.fits.get(key);
+    if (cached?.signature === signature) return cached.accounts;
+    const result = estimator.estimate(samples);
+    this.fits.delete(key);
+    this.fits.set(key, { signature, accounts: result });
+    if (this.fits.size > 8) this.fits.delete(this.fits.keys().next().value!);
+    return result;
+  }
+}
+
+const caches = new WeakMap<Db, WeakMap<LabDb, QuotaEstimationCache>>();
+
+export function getQuotaEstimation(params: EstimationParams): Promise<QuotaEstimation> {
+  let databases = caches.get(params.db);
+  if (!databases) { databases = new WeakMap(); caches.set(params.db, databases); }
+  let cache = databases.get(params.labDb);
+  if (!cache) { cache = new QuotaEstimationCache(); databases.set(params.labDb, cache); }
+  return cache.get(params);
+}
+
+async function loadQuotaEstimation(params: EstimationParams, cache: QuotaEstimationCache): Promise<QuotaEstimation> {
   const start = new Date(params.now.getTime() - params.hours * 3_600_000);
   const [snapshotResult, accountResult, officialPricing] = await Promise.all([
     params.labDb.pool.query<QuotaObservation>(`
@@ -71,7 +115,7 @@ export async function getQuotaEstimation(params: { db: Db; labDb: LabDb; hours: 
         SUM(COALESCE(ul.cache_read_tokens, 0))::float8 AS "cacheRead",
         SUM(COALESCE(ul.cache_creation_tokens, 0))::float8 AS "cacheCreation"
       FROM intervals i JOIN usage_logs ul ON ul.account_id = i."accountId" AND ul.created_at >= i.start AND ul.created_at < i."end"
-      GROUP BY i.id, 2
+      GROUP BY i.id, 2 ORDER BY i.id, 2
     `, [JSON.stringify(estimator.intervals)]);
     for (const row of result.rows) {
       const model = samples[row.id]!.models.find((item) => item.model === row.model);
@@ -80,5 +124,5 @@ export async function getQuotaEstimation(params: { db: Db; labDb: LabDb; hours: 
     }
   }
   return { hours: params.hours, start: start.toISOString(), end: params.now.toISOString(), timezone: params.timezone,
-    accounts: estimator.estimate(samples, params.now, params.hours === 168) };
+    accounts: cache.fit(params, estimator, samples, observations, accountResult.rows) };
 }
